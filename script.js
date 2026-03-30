@@ -1,8 +1,4 @@
 /**
- * COUNT & CRAWL 3D - GAME LOGIC & RENDERING
- * ==========================================
- * Main JavaScript file for the 3D math game
- * 
  * Architecture:
  * - Three.js for 3D rendering
  * - Raycasting for mouse/touch input
@@ -13,15 +9,6 @@
  * Flow:
  * boot() → initThree() → setupLighting() → buildWorld() →
  * createBug() → setupControls() → setupUI() → gameLoop()
- */
-
-/* ========================================
-   SECTION 1: CONSTANTS & CONFIGURATION
-   Game tuning parameters - modify these to adjust difficulty
-   ======================================== */
-
-/**
- * World/Environment Constants
  */
 const TILE_SIZE = 26;           // Size of one grass tile (26×26 units)
 const TILE_COUNT = 9;           // Create 9×9 grid = 81 tiles (infinite look)
@@ -64,10 +51,6 @@ const ORB_COLORS = [
   0xff85a1  // Pink
 ];
 
-/* ========================================
-   SECTION 2: STATE VARIABLES
-   Global game state - updated during gameplay
-   ======================================== */
 
 // Three.js Objects
 let scene, camera, renderer, raycaster;
@@ -99,11 +82,6 @@ let sunLight;                       // Main directional light (follows camera)
 // Orb Spawning Grid
 let lastOrbSpawnX = 0;              // Last grid cell X we spawned
 let lastOrbSpawnZ = 0;              // Last grid cell Z we spawned
-
-/* ========================================
-   SECTION 3: THREE.JS INITIALIZATION
-   Setup 3D scene, camera, renderer
-   ======================================== */
 
 /**
  * Initialize Three.js Scene
@@ -140,12 +118,6 @@ function initThree() {
   // Listen for window resize
   window.addEventListener('resize', onResize);
 }
-
-/* ========================================
-   SECTION 4: LIGHTING
-   Setup ambient and directional lights
-   ======================================== */
-
 /**
  * Setup Lighting
  * Multiple light sources create realistic 3D appearance
@@ -174,12 +146,6 @@ function setupLighting() {
 
   scene.add(sunLight);
 }
-
-/* ========================================
-   SECTION 5: WORLD GENERATION
-   Create grass tiles and decorations
-   ======================================== */
-
 /**
  * Available grass tile colors (6 variations)
  * Mix of green shades for visual variety
@@ -285,7 +251,6 @@ function makeFlower() {
   
   return g;
 }
-
 /**
  * Create Mushroom Decoration
  * White stem with colored cap
@@ -347,11 +312,6 @@ function makeBush() {
   });
   return g;
 }
-
-/* ========================================
-   SECTION 6: BUG CHARACTER CREATION
-   Build detailed 3D bug model
-   ======================================== */
 
 /**
  * Create Bug Character
@@ -518,12 +478,6 @@ function createBug() {
     segmentPositions.push({ x: -(i + 1) * SEG_SPACING, z: 0 });
   }
 }
-
-/* ========================================
-   SECTION 7: ORB SYSTEM (NUMBER COLLECTIBLES)
-   Create and manage number orbs
-   ======================================== */
-
 /**
  * Orb CSS Colors (HTML labels)
  * Matches 3D ORB_COLORS array
@@ -702,12 +656,6 @@ function initializeOrbSpawning() {
     }
   }
 }
-
-/* ========================================
-   SECTION 8: PARTICLE EFFECTS
-   Burst particles on collect/miss
-   ======================================== */
-
 /**
  * Create Particle Burst
  * Spawns 20 small spheres that fly outward
@@ -765,12 +713,6 @@ function updateParticles(dt) {
     }
   }
 }
-
-/* ========================================
-   SECTION 9: WORLD & COLLISION UPDATES
-   Tile recycling, continuous orb spawning
-   ======================================== */
-
 /**
  * Update World
  * Recycle tiles, spawn new orbs, update lighting
@@ -831,12 +773,6 @@ function updateWorld() {
   sunLight.target.position.set(bx, 0, bz);
   sunLight.target.updateMatrixWorld();
 }
-
-/* ========================================
-   SECTION 10: PHYSICS & MOVEMENT
-   Bug movement, body chain IK, camera follow
-   ======================================== */
-
 /**
  * Update Bug Movement
  * - Move head toward target point
@@ -928,12 +864,6 @@ function updateOrbs(t) {
     o.sphere.rotation.y += 0.012;
   });
 }
-
-/* ========================================
-   SECTION 11: COLLISION & SCORING
-   Check orb collisions, handle hits
-   ======================================== */
-
 /**
  * Check Collisions
  * Test bug distance against all orbs
@@ -1041,12 +971,6 @@ function generateEquation() {
   const n2 = Math.floor(Math.random() * MAX_NUM) + MIN_NUM;
   return { num1: n1, num2: n2, answer: n1 + n2 };
 }
-
-/* ========================================
-   SECTION 12: INPUT HANDLING
-   Mouse/touch controls
-   ======================================== */
-
 /**
  * Setup Controls
  * Convert mouse/touch input to bug target position
@@ -1180,12 +1104,6 @@ function gameLoop() {
   // Render
   renderer.render(scene, camera);
 }
-
-/* ========================================
-   SECTION 14: UI EVENT BINDINGS
-   Connect HTML buttons to game functions
-   ======================================== */
-
 /**
  * Setup UI
  * Bind click events to buttons and modals
@@ -1272,17 +1190,6 @@ function setupUI() {
     }
   });
 }
-
-/* ========================================
-   SECTION 15: APPLICATION BOOTSTRAP
-   Start the game on page load
-   ======================================== */
-
-/**
- * Boot Function
- * Called once on page load
- * Initializes all systems in order
- */
 function boot() {
   initThree();              // 1. Setup 3D scene
   setupLighting();          // 2. Add lights
@@ -1293,9 +1200,4 @@ function boot() {
   gameLoop();               // 7. Start rendering
 }
 
-// Run on page load
 boot();
-
-/* ========================================
-   END OF JAVASCRIPT FILE
-   ======================================== */
