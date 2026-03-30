@@ -60,6 +60,7 @@ body {
   transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   font-weight: bold;
+  z-index: 11;                               /* Above equation box */
 }
 
 .hud-button:hover { 
@@ -83,7 +84,7 @@ body {
 
 #soundToggleBtn {
   top: 18px;
-  left: 134px;
+  right: 120px;                              /* Right side, left of score box */
   background: linear-gradient(135deg, #06b6d4, #0891b2);
 }
 
@@ -94,21 +95,22 @@ body {
 
 #equationBox {
   position: absolute;
-  top: 16px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);               /* Center horizontally */
   background: rgba(255,255,255,0.92);
   border: 3px solid #16a34a;                 /* Green border */
   border-radius: 50px;                       /* Pill-shaped */
-  padding: 8px 28px;
+  padding: 14px 40px;                        /* Larger padding */
   font-family: 'Fredoka One', cursive;      /* Distinct font for readability */
-  font-size: clamp(20px, 4vw, 30px);        /* Responsive sizing */
+  font-size: clamp(22px, 5vw, 36px);        /* Larger font */
   color: #064e3b;                            /* Dark green text */
   box-shadow: 0 4px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
   white-space: nowrap;                       /* Keep equation on one line */
   transition: background 0.3s;
-  min-width: 200px;
+  min-width: 240px;                          /* Larger minimum width */
   text-align: center;
+  z-index: 9;                                /* Below buttons, above canvas */
 }
 
 /**
@@ -700,7 +702,7 @@ body {
 
   #soundToggleBtn {
     top: 12px;
-    left: 116px;
+    right: 108px;                            /* Right side on tablet */
   }
 
   #scoreBox {
@@ -746,9 +748,9 @@ body {
 @media (max-width: 480px) {
   #equationBox {
     top: 8px;
-    padding: 4px 16px;
-    font-size: clamp(14px, 3vw, 20px);
-    min-width: 140px;
+    padding: 10px 24px;                      /* Larger padding on mobile */
+    font-size: clamp(16px, 3.5vw, 24px);    /* Larger font on mobile */
+    min-width: 160px;                        /* Larger on mobile */
     border-width: 2px;                       /* Thinner border */
   }
 
@@ -849,7 +851,7 @@ body {
 
   #soundToggleBtn {
     top: 8px;
-    left: 104px;
+    right: 96px;                             /* Right side on phone */
   }
 }
 
