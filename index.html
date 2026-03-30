@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a8fe3">
+  <title>Count &amp; Crawl </title>
+  <link href="https://fonts.googleapis.com/css2?family=Bubblegum+Sans&family=Fredoka+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- THREE.JS CANVAS IS APPENDED HERE BY JS -->
+
+<!-- ── HUD ───────────────────────────────────────────────── -->
+<div id="hud">
+  <button class="hud-button" id="pauseBtn" title="Pause">⏸</button>
+  <button class="hud-button" id="exitBtn" title="Exit">✕</button>
+  <div id="equationBox">
+    <span id="equationText">0 + 0 = ?</span>
+  </div>
+  <div id="scoreBox">
+    <div id="scoreLabel">SCORE</div>
+    <div id="scoreDisplay">0</div>
+  </div>
+</div>
+
+<!-- ── COMBO FLASH ───────────────────────────────────────── -->
+<div id="comboFlash">✓ +10</div>
+
+<!-- ── START SCREEN ─────────────────────────────────────── -->
+<div class="screen" id="startScreen">
+  <div class="start-title">
+    <span class="title-count">Count</span>
+    <span class="title-amp"> &amp; </span>
+    <span class="title-crawl">Crawl</span>
+  </div>
+  <div class="brand-tag">Kido<span>Games</span></div>
+  <button class="btn btn-play" id="playBtn">PLAY NOW</button>
+  <button class="btn btn-how" id="howToPlayBtn">HOW TO PLAY</button>
+  <div class="author-tag">Created by Njeri</div>
+</div>
+
+<!-- ── INSTRUCTIONS MODAL ───────────────────────────────── -->
+<div class="modal-overlay" id="instructionsModal" style="display:none">
+  <div class="modal-card">
+    <div class="close-x" id="closeInstructions">✕</div>
+    <h2>How to Play</h2>
+    <p>Move your mouse (or finger) to guide the bug.</p>
+    <p>The equation at the top shows what to solve.</p>
+    <p>Eat the number orb that answers the equation!</p>
+    <p>Eating a wrong number = Game Over! Be careful!</p>
+    <p>Score 10 points for each correct answer. Go!</p>
+  </div>
+</div>
+
+<!-- ── PAUSE MODAL ──────────────────────────────────────────┌ -->
+<div class="modal-overlay" id="pauseModal" style="display:none">
+  <div class="modal-card">
+    <h3>Game Paused</h3>
+    <div class="modal-btns">
+      <button class="btn btn-green" id="resumeBtn">Resume</button>
+      <button class="btn btn-gray" id="pauseMenuBtn">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── QUIT CONFIRMATION MODAL ───────────────────────────────── -->
+<div class="modal-overlay" id="quitModal" style="display:none">
+  <div class="modal-card">
+    <h3>Are you sure?</h3>
+    <p style="text-align:center; color:#065f46; margin:0 0 20px 0;">⚠ Your progress will be lost.</p>
+    <div class="modal-btns">
+      <button class="btn btn-green" id="quitConfirmBtn">Quit</button>
+      <button class="btn btn-gray" id="quitCancelBtn">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── GAME OVER MODAL ──────────────────────────────────── -->
+<div class="modal-overlay" id="gameOverModal" style="display:none">
+  <div class="modal-card">
+    <h2>Game Over!</h2>
+    <div class="final-score-box">
+      Final Score<span id="finalScore">0</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-green" id="playAgainBtn">Play Again</button>
+      <button class="btn btn-gray" id="mainMenuBtn">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- THREE.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- GAME SCRIPT -->
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,884 @@
+/**
+ * - Responsive layout for all devices
+ * - Smooth animations and transitions
+ * - Mobile-first approach
+ * 
+ * Features:
+ * - HUD (Heads-Up Display) styling
+ * - Modal overlays and dialogs
+ * - Animated buttons and text
+ * - Responsive grid system
+ * - Touch-friendly UI elements
+ */
+
+/* ========================================
+   GLOBAL RESET & BASE STYLES
+   ======================================== */
+
+/**
+ * Reset all default margins, padding, and sizing
+ * Ensures consistent styling across all browsers
+ */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/**
+ * Body: Main container for the entire game
+ * - Full-screen canvas background
+ * - Prevent scrolling and user selection
+ * - Smooth font rendering
+ */
+body {
+  overflow: hidden;                          /* Hide scrollbars */
+  background: linear-gradient(180deg, #1a8fe3 0%, #56ccf2 40%, #a8edaf 100%);
+  font-family: 'Bubblegum Sans', cursive;   /* Playful, kid-friendly font */
+  touch-action: none;                        /* Disable default touch behaviors */
+  user-select: none;                         /* Prevent text selection */
+  -webkit-user-select: none;                 /* Safari */
+  -webkit-touch-callout: none;               /* iOS */
+  -webkit-font-smoothing: antialiased;       /* Smooth fonts */
+  -moz-osx-font-smoothing: grayscale;        /* Firefox */
+}
+
+/* ========================================
+   THREE.JS CANVAS
+   ======================================== */
+
+/**
+ * Canvas element where Three.js renders the 3D scene
+ * Positioned full-screen behind all UI elements (z-index: 1)
+ */
+#threeCanvas {
+  position: fixed;
+  inset: 0;                                  /* Fill entire viewport */
+  z-index: 1;                                /* Behind UI (z: 10) */
+  display: block;
+}
+
+/* ========================================
+   HUD (HEADS-UP DISPLAY)
+   Main UI overlay visible during gameplay
+   ======================================== */
+
+#hud {
+  position: fixed;
+  inset: 0;                                  /* Cover entire screen */
+  z-index: 10;                               /* Above canvas (z: 1), below modals (z: 50) */
+  pointer-events: none;                      /* Don't block canvas clicks */
+  display: none;                             /* Hidden until game starts */
+}
+
+/**
+ * HUD Control Buttons (Pause & Exit)
+ * Circular buttons positioned in top-left corner
+ * - Greenish for pause (normal action)
+ * - Reddish for exit (warning action)
+ */
+.hud-button {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;                        /* Make circular */
+  border: 3px solid #fff;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;                      /* Re-enable pointer for buttons */
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  font-weight: bold;
+}
+
+.hud-button:hover { 
+  transform: scale(1.1);                     /* Enlarge on hover */
+}
+
+.hud-button:active { 
+  transform: scale(0.95);                    /* Shrink when pressed */
+}
+
+/**
+ * Pause Button - Green circular button
+ * Top-left corner, icon: ⏸
+ */
+#pauseBtn {
+  top: 18px;
+  left: 18px;
+}
+
+/**
+ * Exit Button - Red circular button
+ * Next to pause button, icon: ✕
+ */
+#exitBtn {
+  top: 18px;
+  left: 76px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+/* ========================================
+   EQUATION BOX
+   Displays current math problem to solve
+   ======================================== */
+
+#equationBox {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);               /* Center horizontally */
+  background: rgba(255,255,255,0.92);
+  border: 3px solid #16a34a;                 /* Green border */
+  border-radius: 50px;                       /* Pill-shaped */
+  padding: 8px 28px;
+  font-family: 'Fredoka One', cursive;      /* Distinct font for readability */
+  font-size: clamp(20px, 4vw, 30px);        /* Responsive sizing */
+  color: #064e3b;                            /* Dark green text */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
+  white-space: nowrap;                       /* Keep equation on one line */
+  transition: background 0.3s;
+  min-width: 200px;
+  text-align: center;
+}
+
+/**
+ * Glitter Animation Class
+ * Applied to equation box when new equation appears
+ * 0.6 second golden glow and scale pulse
+ */
+#equationBox.glitter {
+  animation: glitterPulse 0.6s ease-out;
+}
+
+/**
+ * GLITTER PULSE KEYFRAME ANIMATION
+ * Creates a shimmering, attention-grabbing effect:
+ * - Scales box from 1x → 1.08x → 1x
+ * - Adds golden glow around the box
+ * - Pulsing light effect inside box
+ * Total duration: 0.6 seconds
+ */
+@keyframes glitterPulse {
+  0% {
+    /* Initial state: normal */
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18), 
+                inset 0 1px 0 rgba(255,255,255,0.8),
+                0 0 0 rgba(253,224,71,0);
+    transform: translateX(-50%) scale(1);
+  }
+  25% {
+    /* First glow: light yellow pulse */
+    background: rgba(255,255,255,0.98);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,1),
+                0 0 20px 5px rgba(253,224,71,0.6),
+                inset 0 0 10px rgba(253,224,71,0.4);
+    transform: translateX(-50%) scale(1.05);
+  }
+  50% {
+    /* Peak: strong yellow glow and maximum scale */
+    background: rgba(255,255,255,0.95);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.9),
+                0 0 30px 8px rgba(253,224,71,0.8),
+                inset 0 0 15px rgba(253,224,71,0.5);
+    transform: translateX(-50%) scale(1.08);
+  }
+  75% {
+    /* Fade: glow fades, scale returns */
+    background: rgba(255,255,255,0.98);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,1),
+                0 0 20px 5px rgba(253,224,71,0.4),
+                inset 0 0 10px rgba(253,224,71,0.2);
+    transform: translateX(-50%) scale(1.04);
+  }
+  100% {
+    /* End state: back to normal */
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.8),
+                0 0 0 rgba(253,224,71,0);
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* ========================================
+   SCORE BOX
+   Displays current score in top-right
+   ======================================== */
+
+#scoreBox {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  width: 72px;
+  height: 72px;
+  background: radial-gradient(circle at 35% 35%, #fde68a, #f59e0b);
+  border: 3px solid #92400e;                 /* Dark brown border */
+  border-radius: 50%;                        /* Circular */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 #92400e, 0 6px 18px rgba(0,0,0,0.25);
+}
+
+#scoreLabel {
+  font-size: 11px;
+  color: #78350f;                            /* Dark brown text */
+  line-height: 1;
+  margin-bottom: 1px;
+}
+
+#scoreDisplay {
+  font-family: 'Fredoka One', cursive;
+  font-size: 26px;
+  color: #1a1a2e;                            /* Very dark blue */
+  line-height: 1;
+}
+
+/* ========================================
+   MODAL SYSTEM
+   Overlay modals for screens and dialogs
+   ======================================== */
+
+/**
+ * Base styling for full-screen overlays
+ * .screen = Start screen (not modal, no overlay)
+ * .modal-overlay = Dimmed background with dialog card
+ */
+.screen, .modal-overlay {
+  position: fixed;
+  inset: 0;                                  /* Cover entire viewport */
+  z-index: 50;                               /* Above HUD (z: 10) */
+  display: flex;
+  align-items: center;                       /* Vertical center */
+  justify-content: center;                   /* Horizontal center */
+}
+
+/**
+ * Modal Overlay: Semi-transparent dark background
+ * Backdrop blur effect makes dialog pop out
+ */
+.modal-overlay {
+  background: rgba(0, 20, 40, 0.6);         /* Dark blue tint */
+  backdrop-filter: blur(4px);                /* Blur background */
+}
+
+/* ========================================
+   START SCREEN
+   Main menu with title and play buttons
+   ======================================== */
+
+/**
+ * Start Screen: Green gradient background
+ * Largest z-index, displayed first
+ */
+#startScreen {
+  flex-direction: column;
+  background: linear-gradient(160deg, #0d5c2e 0%, #16803a 50%, #22c55e 100%);
+  overflow: hidden;
+}
+
+/**
+ * Animated background with floating particles
+ * Creates depth and visual interest
+ */
+#startScreen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 10% 15%, rgba(255,255,255,0.12) 12%, transparent 12.5%),
+    radial-gradient(circle at 85% 10%, rgba(255,200,50,0.15) 8%, transparent 8.5%),
+    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 10%, transparent 10.5%),
+    radial-gradient(circle at 70% 85%, rgba(100,255,150,0.12) 14%, transparent 14.5%),
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 40%, transparent 40.5%);
+  animation: bgDrift 20s ease-in-out infinite alternate;
+  pointer-events: none;                      /* Don't block buttons */
+}
+
+/**
+ * Background Drift Animation
+ * Subtle pulsing effect for visual interest
+ */
+@keyframes bgDrift {
+  from { transform: scale(1) translate(0,0); }
+  to   { transform: scale(1.08) translate(-2%, -2%); }
+}
+
+/**
+ * Start Screen Title
+ * "Count & Crawl" text with bouncing animation
+ */
+.start-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(44px, 11vw, 90px);       /* Scales with viewport */
+  line-height: 1;
+  text-align: center;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+/**
+ * Title Word Colors & Shadows
+ * Each word has shadow outline for 3D effect
+ */
+.title-count {
+  color: #a7f3d0;                            /* Light green */
+  text-shadow: -3px -3px 0 #064e3b, 3px -3px 0 #064e3b,
+               -3px  3px 0 #064e3b, 3px  3px 0 #064e3b,
+               0 8px 20px rgba(0,0,0,0.4);
+  display: inline-block;
+  animation: titleBounce 2.2s ease-in-out infinite;
+}
+
+.title-amp {
+  color: #fef3c7;                            /* Light yellow */
+  text-shadow: -2px -2px 0 #78350f, 2px -2px 0 #78350f,
+               -2px  2px 0 #78350f, 2px  2px 0 #78350f;
+  display: inline-block;
+  animation: titleBounce 2.2s ease-in-out infinite 0.15s;
+}
+
+.title-crawl {
+  color: #fde68a;                            /* Golden yellow */
+  text-shadow: -3px -3px 0 #78350f, 3px -3px 0 #78350f,
+               -3px  3px 0 #78350f, 3px  3px 0 #78350f,
+               0 8px 20px rgba(0,0,0,0.4);
+  display: inline-block;
+  animation: titleBounce 2.2s ease-in-out infinite 0.3s;
+}
+
+/**
+ * Title Bounce Animation
+ * Each word bounces up and rotates slightly
+ * Staggered timing creates wave effect
+ */
+@keyframes titleBounce {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  25%      { transform: translateY(-12px) rotate(-2deg); }
+  75%      { transform: translateY(-6px)  rotate(2deg); }
+}
+
+.brand-tag {
+  font-size: clamp(22px, 5vw, 34px);
+  color: #bbf7d0;
+  text-align: center;
+  margin-bottom: 30px;
+  letter-spacing: 1px;
+}
+
+.brand-tag span { color: #fbbf24; }          /* Highlight color */
+
+/* ========================================
+   BUTTONS
+   Shared button styling for all interactive elements
+   ======================================== */
+
+/**
+ * Base Button Style
+ * Used for Play, How To Play, and modal action buttons
+ */
+.btn {
+  display: block;
+  width: min(300px, 80vw);                  /* Responsive width */
+  padding: 14px 0;
+  border-radius: 18px;
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(22px, 5vw, 28px);       /* Responsive sizing */
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+  margin: 10px;
+  position: relative;
+  border: none;
+  outline: none;
+}
+
+/**
+ * Play Button: Golden/Yellow
+ * Large, pulsing button that draws attention
+ */
+.btn-play {
+  background: linear-gradient(to bottom, #fde68a, #f59e0b);
+  color: #78350f;                            /* Dark brown text */
+  border: 4px solid #92400e;
+  box-shadow: 0 7px 0 #92400e, 0 9px 18px rgba(0,0,0,0.3);
+  animation: btnPulse 1.8s ease-in-out infinite;
+}
+
+/**
+ * Button Pulse Animation
+ * Draws attention to play button
+ */
+@keyframes btnPulse {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/**
+ * How To Play Button: Cyan/Blue
+ */
+.btn-how {
+  background: linear-gradient(to bottom, #a5f3fc, #06b6d4);
+  color: #0c4a6e;                            /* Dark blue text */
+  border: 4px solid #0e7490;
+  box-shadow: 0 7px 0 #0e7490, 0 9px 18px rgba(0,0,0,0.25);
+}
+
+/**
+ * Button Interactions
+ * Hover: lift button up
+ * Active: push button down for 3D effect
+ */
+.btn:hover { transform: translateY(-3px); }
+.btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #92400e, 0 4px 10px rgba(0,0,0,0.2); }
+
+.author-tag {
+  position: absolute;
+  bottom: 14px;
+  left: 18px;
+  color: rgba(255,255,255,0.5);             /* Semi-transparent white */
+  font-size: 12px;
+}
+
+/* ========================================
+   MODAL CARDS
+   Dialog boxes for all modals
+   ======================================== */
+
+/**
+ * Modal Card: White gradient background
+ * Centered dialog container with pop-in animation
+ */
+.modal-card {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 4px solid #16a34a;                /* Green border */
+  border-radius: 24px;
+  padding: 36px 40px;
+  max-width: min(480px, 90vw);              /* Responsive width */
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  position: relative;
+  animation: cardPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/**
+ * Card Pop Animation
+ * Scales from 70% → 100% with smooth overshoot
+ */
+@keyframes cardPop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.modal-card h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(26px, 6vw, 34px);
+  color: #064e3b;                            /* Dark green */
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.modal-card h3 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(20px, 5vw, 28px);
+  color: #064e3b;
+  text-align: center;
+  margin-bottom: 24px;
+  margin-top: 0;
+}
+
+.modal-card p {
+  color: #065f46;                            /* Dark green text */
+  font-size: clamp(15px, 3.5vw, 18px);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.modal-card p::before { content: '🐛 '; }  /* Bug emoji prefix */
+
+/**
+ * Close Button (X)
+ * Top-right corner of modal
+ */
+.close-x {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  font-size: 28px;
+  color: #16a34a;                            /* Green */
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.close-x:hover {
+  background: rgba(22,163,74,0.15);         /* Light green background */
+  transform: rotate(90deg);                  /* Spin on hover */
+}
+
+/* ========================================
+   GAME OVER & SCORING
+   ======================================== */
+
+/**
+ * Final Score Box
+ * Displays final score in game over modal
+ */
+.final-score-box {
+  background: rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  margin: 18px 0;
+  font-family: 'Fredoka One', cursive;
+  font-size: 28px;
+  color: #064e3b;
+}
+
+.final-score-box span {
+  color: #f59e0b;                            /* Golden text */
+  font-size: 44px;
+  display: block;
+}
+
+/**
+ * Modal Button Group
+ * Flexbox layout for multiple action buttons
+ */
+.modal-btns {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;                           /* Stack on narrow screens */
+  margin-top: 6px;
+}
+
+.modal-btns .btn {
+  width: auto;                               /* Auto-sizing buttons */
+  padding: 12px 24px;
+  font-size: 20px;
+  margin: 0;
+}
+
+/**
+ * Green Action Button
+ * Positive actions (play, continue, resume)
+ */
+.btn-green {
+  background: linear-gradient(to bottom, #4ade80, #16a34a);
+  color: #fff;
+  border: 3px solid #064e3b;
+  box-shadow: 0 5px 0 #064e3b, 0 7px 14px rgba(0,0,0,0.2);
+}
+
+/**
+ * Gray Neutral Button
+ * Neutral actions (menu, cancel, exit)
+ */
+.btn-gray {
+  background: linear-gradient(to bottom, #e5e7eb, #9ca3af);
+  color: #374151;                            /* Dark gray text */
+  border: 3px solid #6b7280;
+  box-shadow: 0 5px 0 #6b7280, 0 7px 14px rgba(0,0,0,0.15);
+}
+
+/* ========================================
+   COMBO FLASH
+   "✓ +10" or "✗ WRONG!" text animation
+   ======================================== */
+
+/**
+ * Combo Flash Text
+ * Centered large text that appears on score events
+ */
+#comboFlash {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);          /* Center on screen */
+  font-family: 'Fredoka One', cursive;
+  font-size: 64px;
+  color: #fde68a;                            /* Golden text */
+  text-shadow: -3px -3px 0 #78350f, 3px 3px 0 #78350f,
+               0 0 30px rgba(255,220,50,0.8);
+  pointer-events: none;                      /* Don't block clicks */
+  z-index: 200;                              /* Above all UI */
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+/**
+ * Combo Animation Class
+ * Applied when player gets correct/wrong answer
+ */
+#comboFlash.show {
+  animation: comboAnim 0.8s ease-out forwards;
+}
+
+/**
+ * Combo Animation Keyframes
+ * Text floats up and fades out
+ */
+@keyframes comboAnim {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+  40%  { opacity: 1; transform: translate(-50%, -60%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
+
+/* ========================================
+   ORB LABELS
+   HTML labels tracking orb 3D positions
+   ======================================== */
+
+/**
+ * Orb Label: HTML div showing number
+ * Positioned via JavaScript to follow 3D orbs
+ * Colors match 3D orb colors
+ */
+.orb-label {
+  position: fixed;
+  transform: translate(-50%, -50%);          /* Center on orb */
+  z-index: 15;                               /* Above canvas, below modals */
+  pointer-events: none;                      /* Don't interfere with clicks */
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;                        /* Circular */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: 26px;
+  font-weight: bold;
+  color: #fff;                               /* White text */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  border: 3px solid rgba(255,255,255,0.85);
+  box-shadow: 0 0 14px 4px rgba(255,255,255,0.35),
+              inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: opacity 0.15s;
+  animation: orbPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/**
+ * Orb Pop Animation
+ * Label scales in when orb first spawns
+ */
+@keyframes orbPop {
+  from { transform: translate(-50%,-50%) scale(0); opacity: 0; }
+  to   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+}
+
+/**
+ * Orb Death Animation
+ * Applied when orb is eaten
+ */
+.orb-label.dying {
+  animation: orbDie 0.3s ease-out forwards;
+}
+
+/**
+ * Orb Die Keyframes
+ * Label expands and fades when eaten
+ */
+@keyframes orbDie {
+  to { transform: translate(-50%,-50%) scale(1.8); opacity: 0; }
+}
+
+/* ========================================
+   MOBILE RESPONSIVE DESIGN
+   Media queries for tablets and phones
+   ======================================== */
+
+/**
+ * TABLET BREAKPOINT: Max width 768px
+ * -Slightly smaller UI elements
+ * -Adjusted button sizes
+ * -Compact spacing
+ */
+@media (max-width: 768px) {
+  #equationBox {
+    top: 12px;
+    padding: 6px 20px;
+    font-size: clamp(16px, 3.5vw, 24px);
+    min-width: 160px;
+  }
+
+  .hud-button {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  #pauseBtn {
+    top: 12px;
+    left: 12px;
+  }
+
+  #exitBtn {
+    top: 12px;
+    left: 64px;
+  }
+
+  #scoreBox {
+    top: 10px;
+    right: 10px;
+    width: 60px;
+    height: 60px;
+  }
+
+  #scoreLabel { font-size: 10px; }
+  #scoreDisplay { font-size: 20px; }
+
+  .btn {
+    width: min(260px, 85vw);
+    padding: 12px 0;
+    font-size: clamp(18px, 4.5vw, 24px);
+  }
+
+  .modal-card {
+    padding: 28px 32px;
+    max-width: min(380px, 95vw);
+  }
+
+  .modal-card h2 { font-size: clamp(22px, 5.5vw, 28px); }
+  .modal-card p { font-size: clamp(13px, 3.2vw, 16px); }
+
+  .orb-label {
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+  }
+
+  .close-x { font-size: 24px; }
+}
+
+/**
+ * PHONE BREAKPOINT: Max width 480px
+ * - Significantly smaller UI
+ * - 75% bug size in JavaScript
+ * - Touch-optimized button sizes
+ * - Reduced padding
+ */
+@media (max-width: 480px) {
+  #equationBox {
+    top: 8px;
+    padding: 4px 16px;
+    font-size: clamp(14px, 3vw, 20px);
+    min-width: 140px;
+    border-width: 2px;                       /* Thinner border */
+  }
+
+  #scoreBox {
+    top: 8px;
+    right: 8px;
+    width: 52px;
+    height: 52px;
+  }
+
+  #scoreLabel { font-size: 9px; margin-bottom: 0; }
+  #scoreDisplay { font-size: 18px; }
+
+  .btn {
+    width: min(240px, 88vw);
+    padding: 10px 0;
+    font-size: clamp(16px, 4vw, 20px);
+    margin: 8px;
+    border-width: 3px;
+  }
+
+  .btn-play {
+    box-shadow: 0 5px 0 #92400e, 0 6px 12px rgba(0,0,0,0.3);
+  }
+
+  .btn-how {
+    box-shadow: 0 5px 0 #0e7490, 0 6px 12px rgba(0,0,0,0.25);
+  }
+
+  .modal-card {
+    border-radius: 18px;
+    padding: 20px 24px;
+    max-width: min(320px, 96vw);
+  }
+
+  .modal-card h2 { 
+    font-size: clamp(20px, 5vw, 26px);
+    margin-bottom: 16px;
+  }
+
+  .modal-card p { 
+    font-size: clamp(12px, 3vw, 14px);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .final-score-box { 
+    padding: 14px;
+    margin: 14px 0;
+    font-size: 24px;
+  }
+
+  .final-score-box span { font-size: 38px; }
+
+  .modal-btns { gap: 10px; }
+  .modal-btns .btn { 
+    padding: 10px 18px;
+    font-size: 16px;
+  }
+
+  .author-tag { 
+    bottom: 10px;
+    left: 10px;
+    font-size: 10px;
+  }
+
+  .orb-label {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+    border-width: 2px;
+    box-shadow: 0 0 12px 3px rgba(255,255,255,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  .close-x { 
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .hud-button {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-width: 2px;
+  }
+
+  #pauseBtn {
+    top: 8px;
+    left: 8px;
+  }
+
+  #exitBtn {
+    top: 8px;
+    left: 56px;
+  }
+}
+
+/* ========================================
+   END OF STYLESHEET
+   ======================================== */
