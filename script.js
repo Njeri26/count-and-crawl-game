@@ -18,7 +18,7 @@ const SEG_SPACING = 0.95;       // Distance between segments (creates snake-like
 /**
  * Gameplay Constants
  */
-const BUG_SPEED = 0.20;         // Max movement speed per frame (0-1 scale)
+const BUG_SPEED = 0.40;         // Max movement speed per frame (0-1 scale)
 const ORB_COUNT = 8;            // Number of orbs to spawn per grid cell
 const MIN_NUM = 1;              // Minimum number in equation (1 + 1)
 const MAX_NUM = 15;             // Maximum number (15 + 15 = up to 30)
