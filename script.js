@@ -1,8 +1,7 @@
 /**mpya
- * Architecture:
  * - Three.js for 3D rendering
  * - Raycasting for mouse/touch input
- * - Physics: body chain IK, momentum
+ * - Physics: body chain IK, momentum//haikua rahisi
  * - Grid-based orb spawning system
  * - Collision detection with sweep
  * 
@@ -10,36 +9,23 @@
  * boot() → initThree() → setupLighting() → buildWorld() →
  * createBug() → setupControls() → setupUI() → gameLoop()
  */
-const TILE_SIZE = 26;           // Size of one grass tile (26×26 units)
-const TILE_COUNT = 9;           // Create 9×9 grid = 81 tiles (infinite look)
-const SEG_COUNT = 11;           // Number of body segments on bug (head + 11 segments)
-const SEG_SPACING = 0.95;       // Distance between segments (creates snake-like body)
+const TILE_SIZE = 26;           
+const TILE_COUNT = 9;           
+const SEG_COUNT = 11;           
+const SEG_SPACING = 0.95;       
 
-/**
- * Gameplay Constants
- */
-const BUG_SPEED = 0.60;         // Max movement speed per frame (0-1 scale)
-const ORB_COUNT = 8;            // Number of orbs to spawn per grid cell
-const MIN_NUM = 1;              // Minimum number in equation (1 + 1)
-const MAX_NUM = 15;             // Maximum number (15 + 15 = up to 30)
+const BUG_SPEED = 0.60;         
+const ORB_COUNT = 8;            
+const MIN_NUM = 1;              
+const MAX_NUM = 15;             
 
-/**
- * Mobile & Input Configuration
- */
-const TOUCH_SENSITIVITY = 1; // Touch damping: 0=immobile, 1=same as mouse
+const TOUCH_SENSITIVITY = 1; // 0=immobile, 1=same as mouse(mobile config)
 const CAMERA_FOLLOW_SPEED = 0.10; // Camera smoothing: higher=faster follow
 const IS_MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-/**
- * Orb Spawning Configuration
- * Continuous spawning as player moves
- */
-const ORB_SPAWN_GRID = 50;      // Grid cell size (spawns new orbs every 50 units)
 
-/**
- * Orb Colors (3D representation)
- * These are Hex color codes used for 3D spheres
- */
+const ORB_SPAWN_GRID = 50;// grid cell size (spawns new orbs every 50 units)
+
 const ORB_COLORS = [
   0xff6b6b, // Red
   0xffd93d, // Yellow
@@ -47,27 +33,21 @@ const ORB_COLORS = [
   0x4d96ff, // Blue
   0xff922b, // Orange
   0xda77f2, // Purple
-  0x4ec9b0, // Teal
+  0x4ec9b0, // teal
   0xff85a1  // Pink
 ];
 
+let scene, camera, renderer, raycaster;// Three.js Objects
 
-// Three.js Objects
-let scene, camera, renderer, raycaster;
-
-// Player (Bug) Objects
 let headGroup;                      // Main bug head mesh group
 let bodySegments = [];              // Array of body segment mesh groups
 let segmentPositions = [];          // Array of {x, z} positions for IK chain
 
-// World Objects
 let groundTiles = [];               // Array of grass tile meshes
 let decoGroups = [];                // Array of decoration groups (flowers, rocks, etc)
 
-// Collectible Orbs
 let numberOrbs = [];                // Array of {group, ring, sphere, label, val, isCorrect, ...}
 
-// Game State
 let currentEquation = '';            // String display of equation
 let correctAnswer = 0;              // Answer to current equation
 let score = 0;                      // Current score (increments by 10 per correct orb)
@@ -75,22 +55,18 @@ let gameActive = false;             // Is gameplay running?
 let gamePaused = false;             // Is game paused by player?
 let targetPoint = new THREE.Vector3(0, 0, 0); // Where bug is moving to (mouse/touch)
 
-// Rendering & Time
 let clock;                          // THREE.Clock for delta time
 const particles = [];               // Array of particles {msh, vel, life}
 let sunLight;                       // Main directional light (follows camera)
 
-// Orb Spawning Grid
 let lastOrbSpawnX = 0;              // Last grid cell X we spawned
 let lastOrbSpawnZ = 0;              // Last grid cell Z we spawned
 
-// Audio System
 let audioContext;                   // Web Audio API context
 let soundEnabled = true;            // Toggle sound on/off
 let backgroundMusicOscillators = [];// Looping background music oscillators
 let musicEnabled = true;            // Background music toggle
 
-// Game Modes & Difficulty
 let gameMode = 'normal';            // 'normal', 'timeAttack', 'survival'
 let difficulty = 'easy';            // 'easy', 'medium', 'hard'
 let timeLeft = 60;                  // Time attack countdown
@@ -99,7 +75,6 @@ let comboStreak = 0;                // Current combo count
 let highScore = 0;                  // Best score ever (from localStorage)
 let gameStartTime = 0;              // When current game started
 
-// Equation System
 let equationOperator = '+';         // '+', '-', '*', '/'
 const EQUATIONS = {
   easy: { operators: ['+'], numRange: [1, 10] },
@@ -107,16 +82,14 @@ const EQUATIONS = {
   hard: { operators: ['+', '-', '*', '/'], numRange: [1, 30] }
 };
 
-// Power-ups System
 let activePowerups = [];            // {type, endTime} - 'slowTime', 'doublePoints', 'shield'
-let shieldActive = false;           // One wrong answer forgiven
+let shieldActive = false;           // 1 wrong answer forgiven
 let slowTimeActive = false;         // Orbs move slower
 let doublePointsActive = false;     // 2x score multiplier
-let powerupMultiplier = 1;          // Current point multiplier
+let powerupMultiplier = 1;          // current point multiplier
 
-// Achievements
 let achievements = {
-  'first10': { earned: false, name: 'First 10 Points' },
+  'first10': { earned: false, name: 'First 10 Points' },//archivements
   'combo5': { earned: false, name: '5x Combo' },
   'combo10': { earned: false, name: '10x Combo' },
   'score100': { earned: false, name: 'Century' },
@@ -124,57 +97,35 @@ let achievements = {
   'equations20': { earned: false, name: 'Math Whiz' }
 };
 
-// Default day theme
+let tutorialShown = false;          // has player seen tutorial?
+let settingsOpen = false;           // is settings menu open?
 
-// Tutorial & Settings
-let tutorialShown = false;          // Has player seen tutorial?
-let settingsOpen = false;           // Is settings menu open?
-
-/**
- * Initialize Three.js Scene
- * Creates main scene, perspective camera, WebGL renderer
- */
 function initThree() {
-  // Create scene with fog for depth perception
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x56ccf2, 60, 140); // Blues, 60-140 unit range
+  scene.fog = new THREE.Fog(0x56ccf2, 60, 140); // Blues, 60-140 unit range(fog)
 
-  // Create perspective camera (matches portrait phone layout)
-  const aspect = window.innerWidth / window.innerHeight;
+  
+  const aspect = window.innerWidth / window.innerHeight;// Create perspective camera (matches portrait phone layout)
   camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 500);
   camera.position.set(0, 20, 12); // High angle, looking down at bug
   camera.lookAt(0, 0, -1);         // Look slightly ahead
 
-  // Create WebGL renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });//WebGL renderer
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit to 2x for mobile
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 2x for mobile only
   
-  // Enable shadows for dynamic lighting
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
+  renderer.shadowMap.enabled = true;//shadow
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
 
-  // Create canvas ID and insert into DOM
-  renderer.domElement.id = 'threeCanvas';
+  renderer.domElement.id = 'threeCanvas';//canvas ID
   document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
-  // Setup raycaster for mouse/touch input
-  raycaster = new THREE.Raycaster();
+  raycaster = new THREE.Raycaster();//mouse/touch 
   clock = new THREE.Clock();
 
-  // Listen for window resize
-  window.addEventListener('resize', onResize);
+  window.addEventListener('resize', onResize);//windows resize
 }
 
-/* ========================================
-   SECTION 3B: AUDIO SYSTEM
-   Web Audio API sound synthesis
-   ======================================== */
-
-/**
- * Initialize Audio Context
- * Create Web Audio API context for sound generation
- */
 function initAudio() {
   try {
     const audioCtx = window.AudioContext || window.webkitAudioContext;
@@ -184,20 +135,18 @@ function initAudio() {
     soundEnabled = false;
   }
   
-  // Load persisted settings
   loadHighScore();
   loadGameSettings();
   startBackgroundMusic();
 }
 
-// ===== HIGH SCORE PERSISTENCE =====
 function saveHighScore(newScore) {
   if (newScore > highScore) {
     highScore = newScore;
     localStorage.setItem('sayItRightHighScore', highScore.toString());
     checkAchievement('score100', newScore >= 100);
     checkAchievement('score500', newScore >= 500);
-    return true; // New high score!
+    return true; // new high score!
   }
   return false;
 }
@@ -215,8 +164,7 @@ function resetHighScore() {
   const display = document.getElementById('highScoreDisplay');
   if (display) display.textContent = 'Best: 0';
   
-  // Show success notification
-  const notification = document.createElement('div');
+  const notification = document.createElement('div');//success
   notification.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #10b981; color: white; padding: 20px 40px; border-radius: 12px; font-size: 18px; font-weight: bold; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.3);';
   notification.textContent = '✓ High Score Reset!';
   document.body.appendChild(notification);
@@ -224,8 +172,7 @@ function resetHighScore() {
   setTimeout(() => notification.remove(), 2000);
 }
 
-// ===== GAME SETTINGS =====
-function loadGameSettings() {
+function loadGameSettings() {//settings
   const savedMusic = localStorage.getItem('sayItRightMusic');
   if (savedMusic !== null) musicEnabled = savedMusic === '1';
   
@@ -238,15 +185,13 @@ function saveGameSettings() {
   localStorage.setItem('sayItRightDifficulty', difficulty);
 }
 
-// ===== BACKGROUND MUSIC =====
-function startBackgroundMusic() {
+function startBackgroundMusic() {//bs sound
   if (!musicEnabled || !audioContext || backgroundMusicOscillators.length > 0) return;
   
   try {
     const ctx = audioContext;
     const now = ctx.currentTime;
     
-    // Gentle ambient background: C major triad
     const notes = [130.81, 164.81, 196.00]; // C3, E3, G3
     
     notes.forEach((freq, idx) => {
@@ -255,7 +200,7 @@ function startBackgroundMusic() {
       
       osc.frequency.value = freq;
       osc.type = 'sine';
-      gain.gain.value = 0.01; // Very quiet background
+      gain.gain.value = 0.01; // quiet background
       
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -281,10 +226,7 @@ function toggleBackgroundMusic() {
   localStorage.setItem('sayItRightMusic', musicEnabled ? '1' : '0');
 }
 
-/**
- * Play Correct Answer Sound
- * Uplifting "ding" with pitch sweep (C4 → G4)
- */
+
 function playCorrectSound() {
   if (!soundEnabled || !audioContext) return;
   
@@ -297,8 +239,7 @@ function playCorrectSound() {
   osc.frequency.setValueAtTime(262, now);      // C4
   osc.frequency.exponentialRampToValueAtTime(392, now + duration); // G4
   
-  // Gain envelope: attack-decay
-  const gain = audioContext.createGain();
+  const gain = audioContext.createGain();//attack decay
   gain.gain.setValueAtTime(0.3, now);
   gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
   
@@ -308,10 +249,6 @@ function playCorrectSound() {
   osc.stop(now + duration);
 }
 
-/**
- * Play Wrong Answer Sound
- * Low buzzer beep (descending pitch)
- */
 function playWrongSound() {
   if (!soundEnabled || !audioContext) return;
   
@@ -321,10 +258,9 @@ function playWrongSound() {
   // Oscillator: pitch drop
   const osc = audioContext.createOscillator();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(200, now);      // Low note
-  osc.frequency.exponentialRampToValueAtTime(80, now + duration); // Even lower
+  osc.frequency.setValueAtTime(200, now);      // low note
+  osc.frequency.exponentialRampToValueAtTime(80, now + duration); // lower
   
-  // Gain envelope
   const gain = audioContext.createGain();
   gain.gain.setValueAtTime(0.25, now);
   gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
@@ -335,10 +271,6 @@ function playWrongSound() {
   osc.stop(now + duration);
 }
 
-/**
- * Play Glitter Sound
- * Magical sparkle (high notes, short)
- */
 function playGlitterSound() {
   if (!soundEnabled || !audioContext) return;
   
@@ -350,8 +282,7 @@ function playGlitterSound() {
   osc.type = 'triangle';
   osc.frequency.setValueAtTime(800, now);      // High C
   
-  // Gain envelope: quick fade
-  const gain = audioContext.createGain();
+  const gain = audioContext.createGain();//quick fade
   gain.gain.setValueAtTime(0.2, now);
   gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
   
@@ -361,23 +292,17 @@ function playGlitterSound() {
   osc.stop(now + duration);
 }
 
-/**
- * Play UI Click Sound
- * Soft button press
- */
 function playClickSound() {
   if (!soundEnabled || !audioContext) return;
   
   const now = audioContext.currentTime;
   const duration = 0.15;
   
-  // Oscillator: medium pitch
-  const osc = audioContext.createOscillator();
+  const osc = audioContext.createOscillator();// Oscillator: medium pitch
   osc.type = 'sine';
   osc.frequency.setValueAtTime(440, now);      // A4
   
-  // Gain envelope
-  const gain = audioContext.createGain();
+  const gain = audioContext.createGain();//envelope
   gain.gain.setValueAtTime(0.15, now);
   gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
   
@@ -387,10 +312,6 @@ function playClickSound() {
   osc.stop(now + duration);
 }
 
-/**
- * Toggle Sound
- * Mute/unmute all sounds
- */
 function toggleSound() {
   soundEnabled = !soundEnabled;
   const soundBtn = document.getElementById('soundToggleBtn');
@@ -404,7 +325,6 @@ function setupAudio() {
   initAudio();
 }
 
-// ===== COMBO STREAK SYSTEM =====
 function incrementCombo() {
   comboStreak++;
   const comboEl = document.getElementById('comboDisplay');
@@ -414,7 +334,7 @@ function incrementCombo() {
     setTimeout(() => { comboEl.style.animation = 'comboAnim 0.5s ease-out'; }, 10);
   }
   
-  // Play combo sound every 5 streak
+  // play combo sound every 5 streak
   if (comboStreak % 5 === 0 && comboStreak > 0) {
     playGlitterSound();
   }
@@ -429,14 +349,12 @@ function resetCombo() {
 }
 
 function getComboMultiplier() {
-  // Every 5 streak = +10% multiplier
+  // every 5 streak = +10% multiplier
   return 1 + (Math.floor(comboStreak / 5) * 0.1);
 }
 
-// ===== DIFFICULTY PROGRESSION =====
 function updateDifficulty() {
-  // Difficulty increases with score
-  const scoreThreshold = score >= 500 ? 'hard' : score >= 200 ? 'medium' : 'easy';
+  const scoreThreshold = score >= 500 ? 'hard' : score >= 200 ? 'medium' : 'easy';//increases with score
   if (difficulty !== scoreThreshold) {
     difficulty = scoreThreshold;
   }
@@ -452,8 +370,7 @@ function getOperators() {
   return eqConfig.operators;
 }
 
-// ===== EQUATION GENERATION (MULTIPLE TYPES) =====
-function generateEquation() {
+function generateEquation() {//many types
   const range = getNumberRange();
   const operators = getOperators();
   
@@ -484,14 +401,13 @@ function generateEquation() {
   }
   
   currentEquation = display;
-  correctAnswer = Math.max(1, Math.abs(answer)); // Ensure positive
+  correctAnswer = Math.max(1, Math.abs(answer)); // ensure positive
   
   const eq = document.getElementById('equationText');
   if (eq) eq.textContent = currentEquation;
 }
 
-// ===== POWER-UP SYSTEM =====
-function spawnPowerup() {
+function spawnPowerup() {//powerups
   if (Math.random() > 0.05) return; // 5% spawn chance per orb
   
   const types = ['slowTime', 'doublePoints', 'shield'];
@@ -511,7 +427,6 @@ function updatePowerups() {
     return true;
   });
   
-  // Recalculate multiplier
   powerupMultiplier = activePowerups.some(p => p.type === 'doublePoints') ? 2 : 1;
 }
 
@@ -545,8 +460,8 @@ function deactivatePowerup(type) {
 
 function displayPowerupNotification(type) {
   const names = {
-    slowTime: '⏱️ SLOW TIME!',
-    doublePoints: '2️⃣ DOUBLE POINTS!',
+    slowTime: '🕓 SLOW TIME!',
+    doublePoints: '✖２ DOUBLE POINTS!',//https://emojidb.org/
     shield: '🛡️ SHIELD!'
   };
   
@@ -565,7 +480,6 @@ function displayPowerupNotification(type) {
   setTimeout(() => notification.remove(), 1000);
 }
 
-// ===== ACHIEVEMENT SYSTEM =====
 function checkAchievement(id, condition) {
   if (condition && !achievements[id].earned) {
     achievements[id].earned = true;
@@ -577,7 +491,7 @@ function checkAchievement(id, condition) {
 function showAchievementPopup(name) {
   const popup = document.createElement('div');
   popup.className = 'achievementPopup';
-  popup.innerHTML = `🏆 Achievement Unlocked!<br>${name}`;
+  popup.innerHTML = `🏆 Achievement Unlocked!<br>${name}`;//kasmall popup
   popup.style.cssText = `
     position: fixed; top: 100px; right: 20px;
     background: linear-gradient(135deg, #667eea, #764ba2);
@@ -602,31 +516,17 @@ function loadAchievements() {
   });
 }
 
-
-
-/* ========================================
-   SECTION 4: LIGHTING
-   Setup ambient and directional lights
-   ======================================== */
-
-/**
- * Setup Lighting
- * Multiple light sources create realistic 3D appearance
- */
 function setupLighting() {
-  // Ambient light: uniform light from all directions
   scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 
-  // Hemisphere light: sky blue above, green grass light below
   const hemi = new THREE.HemisphereLight(0x87ceeb, 0x4ade80, 0.7);
   scene.add(hemi);
 
-  // Directional light: sun-like light casting shadows
   sunLight = new THREE.DirectionalLight(0xfff5e0, 1.4);
   sunLight.position.set(12, 24, 8);
   sunLight.castShadow = true;
   
-  // Shadow camera setup (orthographic projection for shadows)
+  // shadow camera setup (orthographic projection for shadows)
   sunLight.shadow.camera.near = 0.5;
   sunLight.shadow.camera.far = 120;
   sunLight.shadow.camera.left = -40;
@@ -638,17 +538,12 @@ function setupLighting() {
   scene.add(sunLight);
 }
 
-/**
- * Create 3D Timer for Time Attack Mode
- * Animated rotating torus that represents time remaining
- */
+
 function createTimer3D() {
   if (timerMesh) scene.remove(timerMesh);
   
-  // Create a group to hold the timer
   timerMesh = new THREE.Group();
   
-  // Create torus geometry (ring shape)
   const torusGeo = new THREE.TorusGeometry(2, 0.3, 16, 100);
   const torusMat = new THREE.MeshPhongMaterial({ 
     color: 0x00d4ff, 
@@ -666,35 +561,25 @@ function createTimer3D() {
   scene.add(timerMesh);
 }
 
-/**
- * Update 3D Timer Animation
- * Rotates based on time remaining and changes color
- */
-function updateTimer3D() {
+
+function updateTimer3D() {//timer
   if (!timerMesh) return;
   
   const torus = timerMesh.children[0];
-  
-  // Rotation speed increases as time runs out
-  const timePercent = timeLeft / 60;
+  const timePercent = timeLeft / 60;  // rotation speed increases as time runs out
   const rotationSpeed = 0.05 + (1 - timePercent) * 0.1;
   torus.rotation.z += rotationSpeed;
   
-  // Color transition: blue (full) → yellow (20s) → red (time out)
   let color;
   if (timePercent > 0.33) {
-    // Blue to cyan gradient
     color = new THREE.Color().setHSL(0.55, 1, 0.5);
   } else if (timePercent > 0.16) {
-    // Cyan to yellow
     const transitionPercent = (0.33 - timePercent) / 0.17;
     color = new THREE.Color().setHSL(0.55 - transitionPercent * 0.35, 1, 0.5);
   } else {
-    // Yellow to red
     color = new THREE.Color().setHSL(0, 1, 0.5);
   }
   
-  // Pulse effect at low time
   if (timePercent < 0.16) {
     const pulse = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
     torus.scale.set(pulse, pulse, pulse);
@@ -706,44 +591,29 @@ function updateTimer3D() {
   torus.material.emissive.copy(color.clone().multiplyScalar(0.6));
 }
 
-/**
- * Available grass tile colors (6 variations)
- * Mix of green shades for visual variety
- */
-const tileColors = [0x2d7a1f, 0x347a24, 0x2a5e1c, 0x3a8229, 0x306820, 0x278024];
+const tileColors = [0x2d7a1f, 0x347a24, 0x2a5e1c, 0x3a8229, 0x306820, 0x278024];//grass shades of green
 
-/**
- * Build World: Create 9×9 grid of grass tiles
- * Tiles repeat/recycle based on player position
- */
 function buildWorld() {
   for (let tx = 0; tx < TILE_COUNT; tx++) {
     for (let tz = 0; tz < TILE_COUNT; tz++) {
-      // Create plane geometry for tile
-      const geo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
-      
-      // Random color material
+      const geo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);// plane geometry for tile
       const mat = new THREE.MeshLambertMaterial({
         color: tileColors[Math.floor(Math.random() * tileColors.length)]
       });
       
-      // Create mesh
       const tile = new THREE.Mesh(geo, mat);
-      tile.rotation.x = -Math.PI / 2; // Rotate 90° to face up
+      tile.rotation.x = -Math.PI / 2; // rotate 90° to face up(mesh)
       
-      // Position in grid (centered around 0,0)
       tile.position.set(
         (tx - Math.floor(TILE_COUNT / 2)) * TILE_SIZE,
         0,
         (tz - Math.floor(TILE_COUNT / 2)) * TILE_SIZE
       );
       
-      // Enable shadow receiving
       tile.receiveShadow = true;
       scene.add(tile);
       groundTiles.push(tile);
 
-      // Create decoration group for this tile
       const dg = new THREE.Group();
       dg.position.copy(tile.position);
       addTileDecos(dg, TILE_SIZE);
@@ -753,19 +623,13 @@ function buildWorld() {
   }
 }
 
-/**
- * Add Decorations to Tile
- * Randomly place flowers, mushrooms, rocks, and bushes
- */
-function addTileDecos(group, size) {
+function addTileDecos(group, size) {//random placement
   const count = 4 + Math.floor(Math.random() * 5); // 4-8 decorations per tile
   
   for (let i = 0; i < count; i++) {
-    // Random position within tile
     const px = (Math.random() - 0.5) * (size - 4);
     const pz = (Math.random() - 0.5) * (size - 4);
     
-    // Random decoration type (weighted probabilities)
     const t = Math.random();
     let d;
     if      (t < 0.38) d = makeFlower();      // 38% flowers
@@ -773,7 +637,6 @@ function addTileDecos(group, size) {
     else if (t < 0.80) d = makeRock();        // 20% rocks
     else               d = makeBush();        // 20% bushes
     
-    // Add decoration to group
     if (d) {
       d.position.set(px, 0, pz);
       group.add(d);
@@ -781,21 +644,16 @@ function addTileDecos(group, size) {
   }
 }
 
-/**
- * Create Flower Decoration
- * Green stem with colored petals
- */
-function makeFlower() {
+
+function makeFlower() {//flower
   const g = new THREE.Group();
   
-  // Stem
-  const stemM = new THREE.MeshLambertMaterial({ color: 0x16a34a });
+  const stemM = new THREE.MeshLambertMaterial({ color: 0x16a34a });//stem
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.75, 6), stemM);
   stem.position.y = 0.37;
   g.add(stem);
   
-  // Head (petals)
-  const petalColors = [0xff6b6b, 0xffd93d, 0xda77f2, 0xff85a1, 0xf97316, 0x38bdf8];
+  const petalColors = [0xff6b6b, 0xffd93d, 0xda77f2, 0xff85a1, 0xf97316, 0x38bdf8];//petals
   const hm = new THREE.MeshLambertMaterial({
     color: petalColors[Math.floor(Math.random() * petalColors.length)]
   });
@@ -803,29 +661,23 @@ function makeFlower() {
   head.position.y = 0.82;
   g.add(head);
   
-  // Center
-  const cm = new THREE.MeshLambertMaterial({ color: 0xfef3c7 });
+  const cm = new THREE.MeshLambertMaterial({ color: 0xfef3c7 });//center
   const cn = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), cm);
   cn.position.y = 0.88;
   g.add(cn);
   
   return g;
 }
-/**
- * Create Mushroom Decoration
- * White stem with colored cap
- */
-function makeMushroom() {
+
+function makeMushroom() {//mushroom
   const g = new THREE.Group();
   
-  // Stem
-  const stemM = new THREE.MeshLambertMaterial({ color: 0xfefce8 });
+  const stemM = new THREE.MeshLambertMaterial({ color: 0xfefce8 });//stem
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 0.48, 8), stemM);
   stem.position.y = 0.24;
   g.add(stem);
   
-  // Cap (half-sphere)
-  const capC = [0xef4444, 0xf97316, 0xa855f7, 0xec4899];
+  const capC = [0xef4444, 0xf97316, 0xa855f7, 0xec4899];//cap
   const capM = new THREE.MeshLambertMaterial({
     color: capC[Math.floor(Math.random() * capC.length)]
   });
@@ -839,11 +691,8 @@ function makeMushroom() {
   return g;
 }
 
-/**
- * Create Rock Decoration
- * Simple dodecahedron with random rotation
- */
-function makeRock() {
+
+function makeRock() {//rocks
   const g = new THREE.Group();
   const m = new THREE.MeshLambertMaterial({ color: 0x9ca3af });
   const r = new THREE.Mesh(
@@ -856,15 +705,11 @@ function makeRock() {
   return g;
 }
 
-/**
- * Create Bush Decoration
- * Three overlapping spheres for bush shape
- */
-function makeBush() {
+
+function makeBush() {//bush 
   const g = new THREE.Group();
   const m = new THREE.MeshLambertMaterial({ color: 0x15803d });
   
-  // Three spheres in triangular pattern
   [[0,0.28,0,0.33],[0.28,0.2,0.08,0.24],[-0.22,0.2,0.06,0.26]].forEach(([x,y,z,r]) => {
     const sp = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), m);
     sp.position.set(x, y, z);
@@ -873,19 +718,13 @@ function makeBush() {
   return g;
 }
 
-/**
- * Create Bug Character
- * Detailed green bug with eyes, antennae, body segments, and legs
- */
 function createBug() {
   headGroup = new THREE.Group();
   scene.add(headGroup);
-
-  // Scale bug smaller on mobile for better visibility
+  // scale bug smaller on mobile for better visibility
   const headScale = IS_MOBILE ? 0.75 : 1;
 
-  // --- HEAD ---
-  const hMat = new THREE.MeshPhongMaterial({
+  const hMat = new THREE.MeshPhongMaterial({//head
     color: 0x4ade80,
     shininess: 90,
     specular: 0xaaffaa
@@ -898,7 +737,6 @@ function createBug() {
   hSphere.castShadow = true;
   headGroup.add(hSphere);
 
-  // --- CHEEK BLUSH ---
   const blushM = new THREE.MeshBasicMaterial({
     color: 0xfca5a5,
     transparent: true,
@@ -910,37 +748,31 @@ function createBug() {
     headGroup.add(bl);
   });
 
-  // --- EYES ---
+  // EYES 
   const eyeM = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 140 });
   const pupM = new THREE.MeshPhongMaterial({ color: 0x0f172a });
   const irisM = new THREE.MeshPhongMaterial({ color: 0x22d3ee, shininess: 80 });
   const hiM = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-  // Left and right eyes
   [-0.32, 0.32].forEach((ex, si) => {
-    // Eye white
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 14), eyeM);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 14), eyeM);//eye white part(dont know the name)
     eye.position.set(ex, 0.72, 0.52);
     headGroup.add(eye);
 
-    // Iris (colored part)
-    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), irisM);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), irisM);//iris
     iris.position.set(ex * 1.05, 0.73, 0.63);
     headGroup.add(iris);
 
-    // Pupil (black dot)
-    const pup = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), pupM);
+    const pup = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), pupM);//pupil
     pup.position.set(ex * 1.08, 0.74, 0.68);
     headGroup.add(pup);
 
-    // Highlight (shine)
-    const hi = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), hiM);
+    const hi = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), hiM);//highlight
     hi.position.set(ex * 1.1 + 0.04, 0.775, 0.72);
     headGroup.add(hi);
   });
 
-  // --- SMILE ---
-  const smilM = new THREE.MeshPhongMaterial({ color: 0x166534 });
+  const smilM = new THREE.MeshPhongMaterial({ color: 0x166534 });//smile(haionekani lakini iko)
   for (let i = 0; i < 5; i++) {
     const t = (i / 4) * Math.PI;
     const sd = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 6), smilM);
@@ -952,8 +784,7 @@ function createBug() {
     headGroup.add(sd);
   }
 
-  // --- ANTENNAE ---
-  const antM = new THREE.MeshPhongMaterial({ color: 0x166534 });
+  const antM = new THREE.MeshPhongMaterial({ color: 0x166534 });//antenae(pembe)
   const tipM = new THREE.MeshPhongMaterial({
     color: 0xfbbf24,
     emissive: 0xfbbf24,
@@ -961,7 +792,6 @@ function createBug() {
   });
   
   [[-0.28, 0.4], [0.28, -0.4]].forEach(([ax, rz]) => {
-    // Base
     const base = new THREE.Mesh(
       new THREE.CylinderGeometry(0.04, 0.04, 0.65, 8),
       antM
@@ -970,27 +800,24 @@ function createBug() {
     base.rotation.z = rz;
     headGroup.add(base);
     
-    // Tip (glowing)
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), tipM);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), tipM);//glow
     tip.position.set(ax + ax * 0.5, 1.47, 0.28);
     headGroup.add(tip);
   });
 
-  // --- BODY SEGMENTS ---
+  // BODY SEGMENTS 
   bodySegments = [];
-  segmentPositions = [{ x: 0, z: 0 }]; // Head position
+  segmentPositions = [{ x: 0, z: 0 }]; // head position
 
-  const segCols = [0x4ade80, 0x22c55e]; // Alternating greens
+  const segCols = [0x4ade80, 0x22c55e]; // alternating greens
   const stripM = new THREE.MeshPhongMaterial({ color: 0x15803d, shininess: 40 });
 
-  // Create body segments in chain
   for (let i = 0; i < SEG_COUNT; i++) {
     const t = i / SEG_COUNT;
-    const sr = 0.65 - t * 0.2; // Taper toward tail
+    const sr = 0.65 - t * 0.2; // taper toward tail
     const sg = new THREE.Group();
 
-    // Segment sphere
-    const sM = new THREE.MeshPhongMaterial({
+    const sM = new THREE.MeshPhongMaterial({//body/segment sphere
       color: segCols[i % 2],
       shininess: 65,
       specular: 0x55ff55
@@ -1000,8 +827,7 @@ function createBug() {
     sp.castShadow = true;
     sg.add(sp);
 
-    // Stripe ring around segment
-    const strp = new THREE.Mesh(
+    const strp = new THREE.Mesh(//segment ring
       new THREE.TorusGeometry(sr * 0.88, 0.055, 6, 18, Math.PI),
       stripM
     );
@@ -1009,14 +835,11 @@ function createBug() {
     strp.rotation.x = Math.PI / 2;
     sg.add(strp);
 
-    // Legs on every other segment
-    if (i % 2 === 0) {
+    if (i % 2 === 0) {//each segment 1 legs
       const legM = new THREE.MeshPhongMaterial({ color: 0x166534 });
       
-      // Left and right legs
       [-1, 1].forEach(side => {
-        // Leg cylinder
-        const leg = new THREE.Mesh(
+        const leg = new THREE.Mesh(//leg cylinder
           new THREE.CylinderGeometry(0.045, 0.035, 0.52, 6),
           legM
         );
@@ -1024,34 +847,24 @@ function createBug() {
         leg.rotation.z = side * 0.72;
         sg.add(leg);
         
-        // Foot
-        const foot = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 6), legM);
+        const foot = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 6), legM);//feet
         foot.position.set(side * (sr + 0.4), 0.06, 0);
         sg.add(foot);
       });
     }
 
-    // Position segment in chain (behind head)
-    sg.position.set(-(i + 1) * SEG_SPACING, 0, 0);
+    sg.position.set(-(i + 1) * SEG_SPACING, 0, 0);// position segment in chain (behind head)just like prvious SVG but now #D vibes get it
     scene.add(sg);
     bodySegments.push(sg);
     segmentPositions.push({ x: -(i + 1) * SEG_SPACING, z: 0 });
   }
 }
-/**
- * Orb CSS Colors (HTML labels)
- * Matches 3D ORB_COLORS array
- */
+
 const ORB_CSS_COLORS = [
   '#ff6b6b','#ffd93d','#6bcb77','#4d96ff',
   '#ff922b','#da77f2','#4ec9b0','#ff85a1'
 ];
 
-/**
- * Create Orb HTML Label
- * Creates a div element that showcases the orb number
- * Positioned via JavaScript to follow 3D orb in world space
- */
 function createOrbLabel(value, cssColor) {
   const div = document.createElement('div');
   div.className = 'orb-label';
@@ -1062,13 +875,9 @@ function createOrbLabel(value, cssColor) {
   return div;
 }
 
-/**
- * Remove Orb Label
- * Removes HTML div with fade-out animation
- */
-function removeOrbLabel(label) {
+function removeOrbLabel(label) {//fade out anime X orb 
   if (!label) return;
-  label.classList.add('dying'); // Trigger CSS animation
+  label.classList.add('dying'); // trigger CSS animation
   setTimeout(() => {
     if (label.parentNode) label.parentNode.removeChild(label);
   }, 300);
@@ -1099,26 +908,19 @@ function syncOrbLabels() {
     const s = worldToScreen(o.group.position);
     o.label.style.left = s.x + 'px';
     o.label.style.top = s.y + 'px';
-    o.label.style.opacity = s.behind ? '0' : '1'; // Hide if behind camera
+    o.label.style.opacity = s.behind ? '0' : '1'; // hide if behind camera
   });
 }
 
-/**
- * Spawn Orbs in Grid Cell
- * Creates ORB_COUNT orbs at a specific grid cell position
- * 40% are correct answers, 60% are wrong
- */
-function spawnOrbsAtGridCell(gridX, gridZ) {
+function spawnOrbsAtGridCell(gridX, gridZ) {//40% are correct answers, 60% are wrong
   if (!gameActive) return;
 
   const cellBaseX = gridX * ORB_SPAWN_GRID;
   const cellBaseZ = gridZ * ORB_SPAWN_GRID;
 
-  // Spawn ORB_COUNT orbs in this cell
   for (let i = 0; i < ORB_COUNT; i++) {
     let val;
     let isCorrect = false;
-    
     // Different spawn logic for game modes
     // Normal/Time Attack/Survival: 40% correct, 60% wrong
     isCorrect = Math.random() < 0.4;
@@ -1126,15 +928,13 @@ function spawnOrbsAtGridCell(gridX, gridZ) {
       if (isCorrect) {
         val = correctAnswer;
       } else {
-        // Generate unique wrong number
-        val = correctAnswer + Math.floor(Math.random() * 13) - 6;
+        val = correctAnswer + Math.floor(Math.random() * 13) - 6;//generate wrong answers
         while (val === correctAnswer || val < 1 || val > 50) {
           val = correctAnswer + Math.floor(Math.random() * 13) - 6;
         }
       }
 
-    // Random position within grid cell
-    const spreadX = cellBaseX + (Math.random() - 0.5) * ORB_SPAWN_GRID;
+    const spreadX = cellBaseX + (Math.random() - 0.5) * ORB_SPAWN_GRID;// random position within grid cell
     const spreadZ = cellBaseZ + (Math.random() - 0.5) * ORB_SPAWN_GRID;
 
     const col3 = ORB_COLORS[i % ORB_COLORS.length];
@@ -1142,17 +942,15 @@ function spawnOrbsAtGridCell(gridX, gridZ) {
 
     const og = new THREE.Group();
 
-    // Glow halo (semi-transparent sphere)
-    const haloM = new THREE.MeshBasicMaterial({
+    const haloM = new THREE.MeshBasicMaterial({// glow halo (semi-transparent sphere)
       color: col3,
       transparent: true,
       opacity: 0.20,
       side: THREE.BackSide
     });
     og.add(new THREE.Mesh(new THREE.SphereGeometry(1.38, 14, 14), haloM));
-
-    // Main sphere (emissive for glow)
-    const sM = new THREE.MeshPhongMaterial({
+    
+    const sM = new THREE.MeshPhongMaterial({// added main sphere (emissive for glow)
       color: col3,
       emissive: col3,
       emissiveIntensity: 0.30,
@@ -1164,8 +962,7 @@ function spawnOrbsAtGridCell(gridX, gridZ) {
     sphere.castShadow = true;
     og.add(sphere);
 
-    // Equator ring (rotating detail)
-    const rM = new THREE.MeshPhongMaterial({
+    const rM = new THREE.MeshPhongMaterial({// Equator ring (rotating detail)
       color: 0xffffff,
       emissive: col3,
       emissiveIntensity: 0.55
@@ -1177,55 +974,41 @@ function spawnOrbsAtGridCell(gridX, gridZ) {
     og.position.set(spreadX, 1.3, spreadZ);
     scene.add(og);
 
-    // Create HTML label
-    const label = createOrbLabel(val, colCSS);
+    const label = createOrbLabel(val, colCSS);//html label
 
-    // Store orb data
-    numberOrbs.push({
+    numberOrbs.push({//store orb data
       group: og,
       ring: ring,
       sphere: sphere,
       label: label,
       val: val,
       baseY: 1.3,
-      phase: Math.random() * Math.PI * 2, // For bobbing animation
-      vx: (Math.random() - 0.5) * 0.025,  // Horizontal drift
+      phase: Math.random() * Math.PI * 2, // bobbing animation
+      vx: (Math.random() - 0.5) * 0.025,  // horizontal drift
       vz: (Math.random() - 0.5) * 0.025,
       isCorrect: isCorrect
     });
   }
 }
 
-/**
- * Initialize Orb Spawning
- * Setup initial spawn grid around player
- */
 function initializeOrbSpawning() {
-  // Clear old orbs
-  numberOrbs.forEach(o => {
+  numberOrbs.forEach(o => {// clear old orbs
     scene.remove(o.group);
     removeOrbLabel(o.label);
   });
   numberOrbs = [];
   lastOrbSpawnX = 0;
   lastOrbSpawnZ = 0;
-
-  // Spawn 3×3 grid of cells around player
-  for (let gx = -1; gx <= 1; gx++) {
+  for (let gx = -1; gx <= 1; gx++) {// 3×3 grid of cells around player
     for (let gz = -1; gz <= 1; gz++) {
       spawnOrbsAtGridCell(gx, gz);
     }
   }
 }
-/**
- * Create Particle Burst
- * Spawns 20 small spheres that fly outward
- */
-function burst(pos, wrong = false) {
+
+function burst(pos, wrong = false) {//20 small spheres that fly outward
   for (let i = 0; i < 20; i++) {
-    // Color: red for wrong, random for correct
-    const col = wrong ? 0xff3333 : ORB_COLORS[Math.floor(Math.random() * ORB_COLORS.length)];
-    
+    const col = wrong ? 0xff3333 : ORB_COLORS[Math.floor(Math.random() * ORB_COLORS.length)];// red for wrong, random for correct
     const msh = new THREE.Mesh(
       new THREE.SphereGeometry(0.1 + Math.random() * 0.1, 6, 6),
       new THREE.MeshBasicMaterial({ color: col, transparent: true })
@@ -1241,7 +1024,7 @@ function burst(pos, wrong = false) {
       msh: msh,
       vel: new THREE.Vector3(
         Math.cos(angle) * spd,
-        0.18 + Math.random() * 0.22, // Upward bias
+        0.18 + Math.random() * 0.22, // upward bias
         Math.sin(angle) * spd
       ),
       life: 1.0
@@ -1249,12 +1032,8 @@ function burst(pos, wrong = false) {
   }
 }
 
-/**
- * Update Particles
- * Apply gravity, update position, fade out
- */
 function updateParticles(dt) {
-  for (let i = particles.length - 1; i >= 0; i--) {
+  for (let i = particles.length - 1; i >= 0; i--) {//particles,  gravity, update position, fade out
     const p = particles[i];
     
     // Apply gravity
@@ -1633,15 +1412,6 @@ function setupControls() {
   }, { passive: true });
 }
 
-/* ========================================
-   SECTION 13: GAME INITIALIZATION & LOOP
-   Init game, main render loop
-   ======================================== */
-
-/**
- * Initialize Game
- * Reset state, spawn first equation/orbs, start gameplay
- */
 function initGame() {
   score = 0;
   gameActive = true;
@@ -1655,8 +1425,7 @@ function initGame() {
   gameStartTime = Date.now();
   timeLeft = gameMode === 'timeAttack' ? 60 : Infinity;
   
-  // Reset 3D timer
-  if (timerMesh) {
+  if (timerMesh) {//reset timer
     scene.remove(timerMesh);
     timerMesh = null;
   }
@@ -1667,8 +1436,7 @@ function initGame() {
   document.getElementById('pauseModal').style.display = 'none';
   document.getElementById('quitModal').style.display = 'none';
 
-  // Reset bug position
-  segmentPositions.length = 0;
+  segmentPositions.length = 0;//bug position
   segmentPositions.push({ x: 0, z: 0 });
   for (let i = 0; i < SEG_COUNT; i++) {
     segmentPositions.push({ x: -(i + 1) * SEG_SPACING, z: 0 });
@@ -1677,25 +1445,18 @@ function initGame() {
   targetPoint.set(0, 0, 0);
   camera.position.set(0, 20, 11);
 
-  // Generate first equation with new system
   generateEquation();
-  document.getElementById('equationText').textContent = currentEquation;
-
-  // Trigger glitter on first equation
-  const eqBox = document.getElementById('equationBox');
+  document.getElementById('equationText').textContent = currentEquation;//equation generation
+  const eqBox = document.getElementById('equationBox');//glitter effect
   eqBox.classList.remove('glitter');
   void eqBox.offsetWidth;
   eqBox.classList.add('glitter');
 
-  // Spawn orbs
-  initializeOrbSpawning();
+  initializeOrbSpawning();//spawn orbs
 }
 
-/**
- * Handle Window Resize
- * Update camera aspect and renderer size
- */
-function onResize() {
+
+function onResize() {//camera aspect & render size(window resize)
   const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -1713,12 +1474,10 @@ function gameLoop() {
     if (gameMode === 'timeAttack') {
       timeLeft = Math.max(0, 60 - Math.floor((Date.now() - gameStartTime) / 1000));
       
-      // Initialize 3D timer on first frame
       if (!timerMesh) {
         createTimer3D();
       }
       
-      // Update 3D timer appearance
       updateTimer3D();
       
       if (timeLeft <= 0) {
@@ -1742,22 +1501,16 @@ function gameLoop() {
     updateCamera(); // Still follow camera on game over screen
   }
 
-  // Update world and effects
   updateWorld();
   updateOrbs(now);
   updateParticles(dt);
   syncOrbLabels();
 
-  // Render
   renderer.render(scene, camera);
 }
-/**
- * Setup UI
- * Bind click events to buttons and modals
- */
+
 function setupUI() {
-  // --- START SCREEN ---
-  document.getElementById('playBtn').addEventListener('click', () => {
+  document.getElementById('playBtn').addEventListener('click', () => {//start screen
     playClickSound();
     document.getElementById('startScreen').style.display = 'none';
     document.getElementById('gameModeModal').style.display = 'flex';
@@ -1780,8 +1533,7 @@ function setupUI() {
     }
   });
 
-  // --- GAME MODE SELECTOR ---
-  document.getElementById('normalModeBtn').addEventListener('click', () => {
+  document.getElementById('normalModeBtn').addEventListener('click', () => {//mode selector
     selectGameMode('normal');
   });
   document.getElementById('timeAttackBtn').addEventListener('click', () => {
@@ -1791,7 +1543,6 @@ function setupUI() {
     selectGameMode('survival');
   });
 
-  // --- SETTINGS ---
   document.getElementById('settingsBtn').addEventListener('click', () => {
     playClickSound();
     settingsOpen = true;
@@ -1821,8 +1572,7 @@ function setupUI() {
     }
   });
 
-  // Settings controls
-  document.getElementById('sfxVolume').addEventListener('change', e => {
+  document.getElementById('sfxVolume').addEventListener('change', e => {//settings control
     soundEnabled = e.target.value > 0;
   });
 
@@ -1839,8 +1589,7 @@ function setupUI() {
 
   document.getElementById('resetScoreBtn').addEventListener('click', resetHighScore);
 
-  // --- GAME OVER ---
-  document.getElementById('playAgainBtn').addEventListener('click', () => {
+  document.getElementById('playAgainBtn').addEventListener('click', () => {//game over
     playClickSound();
     document.getElementById('gameOverModal').style.display = 'none';
     document.getElementById('gameModeModal').style.display = 'flex';
@@ -1857,8 +1606,7 @@ function setupUI() {
     stopBackgroundMusic();
   });
 
-  // --- PAUSE ---
-  document.getElementById('pauseBtn').addEventListener('click', () => {
+  document.getElementById('pauseBtn').addEventListener('click', () => {//pause
     if (gameActive) {
       playClickSound();
       gamePaused = true;
@@ -1884,8 +1632,7 @@ function setupUI() {
     stopBackgroundMusic();
   });
 
-  // --- QUIT ---
-  document.getElementById('exitBtn').addEventListener('click', () => {
+  document.getElementById('exitBtn').addEventListener('click', () => {//quit/exit
     if (gameActive) {
       playClickSound();
       document.getElementById('quitModal').style.display = 'flex';
@@ -1912,8 +1659,7 @@ function setupUI() {
     }
   });
 
-  // --- SOUND TOGGLE ---
-  document.getElementById('soundToggleBtn').addEventListener('click', toggleSound);
+  document.getElementById('soundToggleBtn').addEventListener('click', toggleSound);//sound t
 }
 
 function selectGameMode(mode) {
