@@ -16,6 +16,7 @@
 <div id="hud">
   <button class="hud-button" id="pauseBtn" title="Pause">❚❚</button>
   <button class="hud-button" id="exitBtn" title="Exit">✕</button>
+  <button class="hud-button" id="settingsBtn" title="Settings">⚙️</button>
   <button class="hud-button" id="soundToggleBtn" title="Toggle Sound">🔊</button>
   <div id="equationBox">
     <span id="equationText">0 + 0 = ?</span>
@@ -23,7 +24,10 @@
   <div id="scoreBox">
     <div id="scoreLabel">SCORE</div>
     <div id="scoreDisplay">0</div>
+    <div id="highScoreDisplay">Best: 0</div>
   </div>
+  <div id="comboDisplay"></div>
+  <div id="powerupBar"></div>
 </div>
 
 <div id="comboFlash">✓ +10</div>
@@ -37,7 +41,7 @@
   <div class="brand-tag">Kido<span>Games</span></div>
   <button class="btn btn-play" id="playBtn">PLAY NOW</button>
   <button class="btn btn-how" id="howToPlayBtn">HOW TO PLAY</button>
-  <div class="author-tag">Created by 𑣲𝓝𝒥ℰℛ𝑰፝𑣲</div>
+  <div class="author-tag">Created by 𑣲𝓝jeri𑣲</div>
 </div>
 
 <div class="modal-overlay" id="instructionsModal" style="display:none">
@@ -79,9 +83,57 @@
     <div class="final-score-box">
       Final Score<span id="finalScore">0</span>
     </div>
+    <div id="highScoreMessage" style="text-align:center; color:#065f46; margin:10px 0 20px 0;"></div>
     <div class="modal-btns">
       <button class="btn btn-green" id="playAgainBtn">Play Again</button>
       <button class="btn btn-gray" id="mainMenuBtn">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME MODE SELECTOR -->
+<div class="modal-overlay" id="gameModeModal" style="display:none">
+  <div class="modal-card">
+    <h2>Select Game Mode</h2>
+    <div class="modal-btns">
+      <button class="btn btn-mode btn-green" id="normalModeBtn">Normal<br><small>Regular gameplay</small></button>
+      <button class="btn btn-mode btn-blue" id="timeAttackBtn">Time Attack<br><small>60 seconds</small></button>
+      <button class="btn btn-mode btn-orange" id="survivalBtn">Survival<br><small>One mistake = Game Over</small></button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" style="display:none">
+  <div class="modal-card">
+    <div class="close-x" id="closeSettings">✕</div>
+    <h2>Settings</h2>
+    
+    <div class="settings-group">
+      <label>🕪 Sound Volume</label>
+      <input type="range" id="sfxVolume" min="0" max="100" value="70">
+    </div>
+    
+    <div class="settings-group">
+      <label>♫ Volume</label>
+      <input type="range" id="musicVolume" min="0" max="100" value="40">
+    </div>
+    
+    <div class="settings-group">
+      <label>𓊍 Difficulty</label>
+      <select id="difficultySelect">
+        <option value="easy">Easy (1-10)</option>
+        <option value="medium" selected>Medium (1-20)</option>
+        <option value="hard">Hard (1-30)</option>
+      </select>
+    </div>
+    
+    <div class="settings-group">
+      <button class="btn btn-red" id="resetScoreBtn">Reset High Score</button>
+    </div>
+    
+    <div class="modal-btns">
+      <button class="btn btn-green" id="closeSettingsBtn">Close</button>
     </div>
   </div>
 </div>

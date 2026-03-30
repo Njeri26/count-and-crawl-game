@@ -68,7 +68,8 @@ let decoGroups = [];                // Array of decoration groups (flowers, rock
 let numberOrbs = [];                // Array of {group, ring, sphere, label, val, isCorrect, ...}
 
 // Game State
-let currentEquation = { num1: 0, num2: 0, answer: 0 };
+let currentEquation = '';            // String display of equation
+let correctAnswer = 0;              // Answer to current equation
 let score = 0;                      // Current score (increments by 10 per correct orb)
 let gameActive = false;             // Is gameplay running?
 let gamePaused = false;             // Is game paused by player?
@@ -86,6 +87,48 @@ let lastOrbSpawnZ = 0;              // Last grid cell Z we spawned
 // Audio System
 let audioContext;                   // Web Audio API context
 let soundEnabled = true;            // Toggle sound on/off
+let backgroundMusicOscillators = [];// Looping background music oscillators
+let musicEnabled = true;            // Background music toggle
+
+// Game Modes & Difficulty
+let gameMode = 'normal';            // 'normal', 'timeAttack', 'survival'
+let difficulty = 'easy';            // 'easy', 'medium', 'hard'
+let timeLeft = 60;                  // Time attack countdown
+let timerMesh = null;               // 3D timer torus for Time Attack
+let comboStreak = 0;                // Current combo count
+let highScore = 0;                  // Best score ever (from localStorage)
+let gameStartTime = 0;              // When current game started
+
+// Equation System
+let equationOperator = '+';         // '+', '-', '*', '/'
+const EQUATIONS = {
+  easy: { operators: ['+'], numRange: [1, 10] },
+  medium: { operators: ['+', '-'], numRange: [1, 20] },
+  hard: { operators: ['+', '-', '*', '/'], numRange: [1, 30] }
+};
+
+// Power-ups System
+let activePowerups = [];            // {type, endTime} - 'slowTime', 'doublePoints', 'shield'
+let shieldActive = false;           // One wrong answer forgiven
+let slowTimeActive = false;         // Orbs move slower
+let doublePointsActive = false;     // 2x score multiplier
+let powerupMultiplier = 1;          // Current point multiplier
+
+// Achievements
+let achievements = {
+  'first10': { earned: false, name: 'First 10 Points' },
+  'combo5': { earned: false, name: '5x Combo' },
+  'combo10': { earned: false, name: '10x Combo' },
+  'score100': { earned: false, name: 'Century' },
+  'score500': { earned: false, name: 'High Roller' },
+  'equations20': { earned: false, name: 'Math Whiz' }
+};
+
+// Default day theme
+
+// Tutorial & Settings
+let tutorialShown = false;          // Has player seen tutorial?
+let settingsOpen = false;           // Is settings menu open?
 
 /**
  * Initialize Three.js Scene
@@ -140,6 +183,102 @@ function initAudio() {
     console.warn('Web Audio API not supported');
     soundEnabled = false;
   }
+  
+  // Load persisted settings
+  loadHighScore();
+  loadGameSettings();
+  startBackgroundMusic();
+}
+
+// ===== HIGH SCORE PERSISTENCE =====
+function saveHighScore(newScore) {
+  if (newScore > highScore) {
+    highScore = newScore;
+    localStorage.setItem('sayItRightHighScore', highScore.toString());
+    checkAchievement('score100', newScore >= 100);
+    checkAchievement('score500', newScore >= 500);
+    return true; // New high score!
+  }
+  return false;
+}
+
+function loadHighScore() {
+  const saved = localStorage.getItem('sayItRightHighScore');
+  highScore = saved ? parseInt(saved) : 0;
+  const display = document.getElementById('highScoreDisplay');
+  if (display) display.textContent = `Best: ${highScore}`;
+}
+
+function resetHighScore() {
+  highScore = 0;
+  localStorage.removeItem('sayItRightHighScore');
+  const display = document.getElementById('highScoreDisplay');
+  if (display) display.textContent = 'Best: 0';
+  
+  // Show success notification
+  const notification = document.createElement('div');
+  notification.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #10b981; color: white; padding: 20px 40px; border-radius: 12px; font-size: 18px; font-weight: bold; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.3);';
+  notification.textContent = '✓ High Score Reset!';
+  document.body.appendChild(notification);
+  
+  setTimeout(() => notification.remove(), 2000);
+}
+
+// ===== GAME SETTINGS =====
+function loadGameSettings() {
+  const savedMusic = localStorage.getItem('sayItRightMusic');
+  if (savedMusic !== null) musicEnabled = savedMusic === '1';
+  
+  const savedDifficulty = localStorage.getItem('sayItRightDifficulty');
+  if (savedDifficulty) difficulty = savedDifficulty;
+}
+
+function saveGameSettings() {
+  localStorage.setItem('sayItRightMusic', musicEnabled ? '1' : '0');
+  localStorage.setItem('sayItRightDifficulty', difficulty);
+}
+
+// ===== BACKGROUND MUSIC =====
+function startBackgroundMusic() {
+  if (!musicEnabled || !audioContext || backgroundMusicOscillators.length > 0) return;
+  
+  try {
+    const ctx = audioContext;
+    const now = ctx.currentTime;
+    
+    // Gentle ambient background: C major triad
+    const notes = [130.81, 164.81, 196.00]; // C3, E3, G3
+    
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.value = 0.01; // Very quiet background
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      backgroundMusicOscillators.push(osc);
+    });
+  } catch(e) {
+    console.warn('Background music failed:', e);
+  }
+}
+
+function stopBackgroundMusic() {
+  backgroundMusicOscillators.forEach(osc => {
+    try { osc.stop(); } catch(e) {}
+  });
+  backgroundMusicOscillators = [];
+}
+
+function toggleBackgroundMusic() {
+  musicEnabled = !musicEnabled;
+  if (musicEnabled) startBackgroundMusic();
+  else stopBackgroundMusic();
+  localStorage.setItem('sayItRightMusic', musicEnabled ? '1' : '0');
 }
 
 /**
@@ -261,13 +400,209 @@ function toggleSound() {
   playClickSound();
 }
 
-/**
- * Setup Audio
- * Initialize Web Audio API
- */
 function setupAudio() {
   initAudio();
 }
+
+// ===== COMBO STREAK SYSTEM =====
+function incrementCombo() {
+  comboStreak++;
+  const comboEl = document.getElementById('comboDisplay');
+  if (comboEl) {
+    comboEl.textContent = `${comboStreak}x COMBO`;
+    comboEl.style.animation = 'none';
+    setTimeout(() => { comboEl.style.animation = 'comboAnim 0.5s ease-out'; }, 10);
+  }
+  
+  // Play combo sound every 5 streak
+  if (comboStreak % 5 === 0 && comboStreak > 0) {
+    playGlitterSound();
+  }
+}
+
+function resetCombo() {
+  if (comboStreak >= 10) checkAchievement('combo10', true);
+  if (comboStreak >= 5) checkAchievement('combo5', true);
+  comboStreak = 0;
+  const comboEl = document.getElementById('comboDisplay');
+  if (comboEl) comboEl.textContent = '';
+}
+
+function getComboMultiplier() {
+  // Every 5 streak = +10% multiplier
+  return 1 + (Math.floor(comboStreak / 5) * 0.1);
+}
+
+// ===== DIFFICULTY PROGRESSION =====
+function updateDifficulty() {
+  // Difficulty increases with score
+  const scoreThreshold = score >= 500 ? 'hard' : score >= 200 ? 'medium' : 'easy';
+  if (difficulty !== scoreThreshold) {
+    difficulty = scoreThreshold;
+  }
+}
+
+function getNumberRange() {
+  const eqConfig = EQUATIONS[difficulty];
+  return eqConfig.numRange;
+}
+
+function getOperators() {
+  const eqConfig = EQUATIONS[difficulty];
+  return eqConfig.operators;
+}
+
+// ===== EQUATION GENERATION (MULTIPLE TYPES) =====
+function generateEquation() {
+  const range = getNumberRange();
+  const operators = getOperators();
+  
+  const num1 = Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
+  const num2 = Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
+  const operator = operators[Math.floor(Math.random() * operators.length)];
+  
+  let answer = 0;
+  let display = '';
+  
+  switch(operator) {
+    case '+':
+      answer = num1 + num2;
+      display = `${num1} + ${num2}`;
+      break;
+    case '-':
+      answer = num1 - num2;
+      display = `${num1} - ${num2}`;
+      break;
+    case '*':
+      answer = num1 * num2;
+      display = `${num1} × ${num2}`;
+      break;
+    case '/':
+      answer = Math.round(num1 / num2);
+      display = `${num1} ÷ ${num2}`;
+      break;
+  }
+  
+  currentEquation = display;
+  correctAnswer = Math.max(1, Math.abs(answer)); // Ensure positive
+  
+  const eq = document.getElementById('equationText');
+  if (eq) eq.textContent = currentEquation;
+}
+
+// ===== POWER-UP SYSTEM =====
+function spawnPowerup() {
+  if (Math.random() > 0.05) return; // 5% spawn chance per orb
+  
+  const types = ['slowTime', 'doublePoints', 'shield'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const duration = 8000; // 8 seconds
+  
+  activePowerups.push({ type, endTime: Date.now() + duration });
+  displayPowerupNotification(type);
+}
+
+function updatePowerups() {
+  activePowerups = activePowerups.filter(p => {
+    if (Date.now() > p.endTime) {
+      deactivatePowerup(p.type);
+      return false;
+    }
+    return true;
+  });
+  
+  // Recalculate multiplier
+  powerupMultiplier = activePowerups.some(p => p.type === 'doublePoints') ? 2 : 1;
+}
+
+function activatePowerup(type) {
+  switch(type) {
+    case 'slowTime':
+      slowTimeActive = true;
+      break;
+    case 'doublePoints':
+      doublePointsActive = true;
+      break;
+    case 'shield':
+      shieldActive = true;
+      break;
+  }
+}
+
+function deactivatePowerup(type) {
+  switch(type) {
+    case 'slowTime':
+      slowTimeActive = false;
+      break;
+    case 'doublePoints':
+      doublePointsActive = false;
+      break;
+    case 'shield':
+      shieldActive = false;
+      break;
+  }
+}
+
+function displayPowerupNotification(type) {
+  const names = {
+    slowTime: '⏱️ SLOW TIME!',
+    doublePoints: '2️⃣ DOUBLE POINTS!',
+    shield: '🛡️ SHIELD!'
+  };
+  
+  const notification = document.createElement('div');
+  notification.className = 'powerupNotif';
+  notification.textContent = names[type];
+  notification.style.cssText = `
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px; font-weight: bold;
+    color: #ffff00; text-shadow: 0 0 10px #ff8800;
+    pointer-events: none; z-index: 100;
+    animation: powerupPop 1s ease-out forwards;
+  `;
+  document.body.appendChild(notification);
+  setTimeout(() => notification.remove(), 1000);
+}
+
+// ===== ACHIEVEMENT SYSTEM =====
+function checkAchievement(id, condition) {
+  if (condition && !achievements[id].earned) {
+    achievements[id].earned = true;
+    showAchievementPopup(achievements[id].name);
+    localStorage.setItem(`achievement_${id}`, '1');
+  }
+}
+
+function showAchievementPopup(name) {
+  const popup = document.createElement('div');
+  popup.className = 'achievementPopup';
+  popup.innerHTML = `🏆 Achievement Unlocked!<br>${name}`;
+  popup.style.cssText = `
+    position: fixed; top: 100px; right: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white; padding: 15px 25px;
+    border-radius: 10px; font-weight: bold;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    pointer-events: none; z-index: 100;
+    animation: slideIn 0.5s ease-out;
+  `;
+  document.body.appendChild(popup);
+  setTimeout(() => {
+    popup.style.animation = 'slideOut 0.5s ease-in forwards';
+    setTimeout(() => popup.remove(), 500);
+  }, 2500);
+}
+
+function loadAchievements() {
+  Object.keys(achievements).forEach(id => {
+    if (localStorage.getItem(`achievement_${id}`)) {
+      achievements[id].earned = true;
+    }
+  });
+}
+
+
 
 /* ========================================
    SECTION 4: LIGHTING
@@ -302,6 +637,75 @@ function setupLighting() {
 
   scene.add(sunLight);
 }
+
+/**
+ * Create 3D Timer for Time Attack Mode
+ * Animated rotating torus that represents time remaining
+ */
+function createTimer3D() {
+  if (timerMesh) scene.remove(timerMesh);
+  
+  // Create a group to hold the timer
+  timerMesh = new THREE.Group();
+  
+  // Create torus geometry (ring shape)
+  const torusGeo = new THREE.TorusGeometry(2, 0.3, 16, 100);
+  const torusMat = new THREE.MeshPhongMaterial({ 
+    color: 0x00d4ff, 
+    emissive: 0x0099ff,
+    shininess: 100
+  });
+  const torus = new THREE.Mesh(torusGeo, torusMat);
+  torus.rotation.x = Math.PI / 2.5; // Tilt for perspective
+  torus.userData.baseMaterial = torusMat;
+  timerMesh.add(torus);
+  
+  // Position timer in top of screen
+  timerMesh.position.set(0, 15, -8);
+  
+  scene.add(timerMesh);
+}
+
+/**
+ * Update 3D Timer Animation
+ * Rotates based on time remaining and changes color
+ */
+function updateTimer3D() {
+  if (!timerMesh) return;
+  
+  const torus = timerMesh.children[0];
+  
+  // Rotation speed increases as time runs out
+  const timePercent = timeLeft / 60;
+  const rotationSpeed = 0.05 + (1 - timePercent) * 0.1;
+  torus.rotation.z += rotationSpeed;
+  
+  // Color transition: blue (full) → yellow (20s) → red (time out)
+  let color;
+  if (timePercent > 0.33) {
+    // Blue to cyan gradient
+    color = new THREE.Color().setHSL(0.55, 1, 0.5);
+  } else if (timePercent > 0.16) {
+    // Cyan to yellow
+    const transitionPercent = (0.33 - timePercent) / 0.17;
+    color = new THREE.Color().setHSL(0.55 - transitionPercent * 0.35, 1, 0.5);
+  } else {
+    // Yellow to red
+    color = new THREE.Color().setHSL(0, 1, 0.5);
+  }
+  
+  // Pulse effect at low time
+  if (timePercent < 0.16) {
+    const pulse = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
+    torus.scale.set(pulse, pulse, pulse);
+  } else {
+    torus.scale.set(1, 1, 1);
+  }
+  
+  torus.material.color.copy(color);
+  torus.material.emissive.copy(color.clone().multiplyScalar(0.6));
+}
+
 /**
  * Available grass tile colors (6 variations)
  * Mix of green shades for visual variety
@@ -707,26 +1111,27 @@ function syncOrbLabels() {
 function spawnOrbsAtGridCell(gridX, gridZ) {
   if (!gameActive) return;
 
-  const eq = currentEquation;
   const cellBaseX = gridX * ORB_SPAWN_GRID;
   const cellBaseZ = gridZ * ORB_SPAWN_GRID;
 
   // Spawn ORB_COUNT orbs in this cell
   for (let i = 0; i < ORB_COUNT; i++) {
     let val;
+    let isCorrect = false;
     
-    // 40% chance of correct answer
-    const isCorrect = Math.random() < 0.4;
+    // Different spawn logic for game modes
+    // Normal/Time Attack/Survival: 40% correct, 60% wrong
+    isCorrect = Math.random() < 0.4;
 
-    if (isCorrect) {
-      val = eq.answer;
-    } else {
-      // Generate unique wrong number
-      val = eq.answer + Math.floor(Math.random() * 13) - 6;
-      while (val === eq.answer || val < 1 || val > 50) {
-        val = eq.answer + Math.floor(Math.random() * 13) - 6;
+      if (isCorrect) {
+        val = correctAnswer;
+      } else {
+        // Generate unique wrong number
+        val = correctAnswer + Math.floor(Math.random() * 13) - 6;
+        while (val === correctAnswer || val < 1 || val > 50) {
+          val = correctAnswer + Math.floor(Math.random() * 13) - 6;
+        }
       }
-    }
 
     // Random position within grid cell
     const spreadX = cellBaseX + (Math.random() - 0.5) * ORB_SPAWN_GRID;
@@ -1039,7 +1444,10 @@ function checkCollisions() {
     
     // Simple distance check
     if (Math.sqrt(dx * dx + dz * dz) < 1.85) {
-      if (o.val === currentEquation.answer) {
+      // Check if answer is correct
+      const isCorrect = o.val === correctAnswer;
+      
+      if (isCorrect) {
         handleCorrect(o, i);
       } else {
         handleWrong(o);
@@ -1069,16 +1477,33 @@ function showComboFlash(text) {
  * Award points, spawn new equation, trigger animation
  */
 function handleCorrect(orb, idx) {
-  // Award points
-  score += 10;
+  // Award points with multipliers
+  const basePoints = 10;
+  const comboBonus = Math.floor(basePoints * (comboStreak / 10));
+  const powerupBonus = Math.floor((basePoints + comboBonus) * (powerupMultiplier - 1));
+  const totalPoints = basePoints + comboBonus + powerupBonus;
+  
+  score += totalPoints;
   document.getElementById('scoreDisplay').textContent = score;
+  
+  // Show feedback
+  showComboFlash(`✓ +${totalPoints}`);
+  burst(orb.group.position.clone());
   
   // Play sound effects
   playCorrectSound();
   
-  // Show feedback
-  showComboFlash('✓ +10');
-  burst(orb.group.position.clone());
+  // Combo streak
+  incrementCombo();
+  
+  // Difficulty progression
+  updateDifficulty();
+  
+  // Spawn power-ups
+  spawnPowerup();
+  
+  // Check achievements
+  checkAchievement('first10', score >= 10);
   
   // Remove orb
   removeOrbLabel(orb.label);
@@ -1086,9 +1511,8 @@ function handleCorrect(orb, idx) {
   numberOrbs.splice(idx, 1);
 
   // Generate new equation
-  currentEquation = generateEquation();
-  document.getElementById('equationText').textContent =
-    currentEquation.num1 + ' + ' + currentEquation.num2 + ' = ?';
+  generateEquation();
+  document.getElementById('equationText').textContent = currentEquation;
 
   // Trigger glitter animation & sound
   playGlitterSound();
@@ -1100,11 +1524,34 @@ function handleCorrect(orb, idx) {
 
 /**
  * Handle Wrong Answer
- * End game, show final screen
+ * End game or apply shield power-up
  */
 function handleWrong(orb) {
   if (!gameActive) return;
   
+  // Reset combo on wrong answer
+  resetCombo();
+  
+  // Check if shield is active
+  if (shieldActive) {
+    const shieldIdx = activePowerups.findIndex(p => p.type === 'shield');
+    if (shieldIdx > -1) {
+      activePowerups.splice(shieldIdx, 1);
+      deactivatePowerup('shield');
+      // Show shield used feedback
+      showComboFlash('🛡️ SAVED!');
+      burst(orb.group.position.clone());
+      playWrongSound();
+      
+      // Remove this orb but continue game
+      removeOrbLabel(orb.label);
+      scene.remove(orb.group);
+      numberOrbs.splice(numberOrbs.indexOf(orb), 1);
+      return;
+    }
+  }
+  
+  // Game over
   gameActive = false;
   
   // Play wrong sound
@@ -1118,22 +1565,23 @@ function handleWrong(orb) {
   burst(orb.group.position.clone(), true);
   showComboFlash('✗ WRONG!');
 
+  // Check if new high score
+  const isNewHighScore = saveHighScore(score);
+  
   // Show game over after delay
   setTimeout(() => {
     document.getElementById('finalScore').textContent = score;
+    if (isNewHighScore) {
+      document.getElementById('highScoreMessage').textContent = 'NEW HIGH SCORE!';
+      document.getElementById('highScoreMessage').style.color = '#fbbf24';
+    } else {
+      document.getElementById('highScoreMessage').textContent = `Best: ${highScore}`;
+    }
     document.getElementById('gameOverModal').style.display = 'flex';
+    stopBackgroundMusic();
   }, 900);
 }
 
-/**
- * Generate Random Equation
- * Creates addition: n1 + n2 = ?
- */
-function generateEquation() {
-  const n1 = Math.floor(Math.random() * MAX_NUM) + MIN_NUM;
-  const n2 = Math.floor(Math.random() * MAX_NUM) + MIN_NUM;
-  return { num1: n1, num2: n2, answer: n1 + n2 };
-}
 /**
  * Setup Controls
  * Convert mouse/touch input to bug target position
@@ -1198,7 +1646,23 @@ function initGame() {
   score = 0;
   gameActive = true;
   gamePaused = false;
+  comboStreak = 0;
+  activePowerups = [];
+  shieldActive = false;
+  slowTimeActive = false;
+  doublePointsActive = false;
+  powerupMultiplier = 1;
+  gameStartTime = Date.now();
+  timeLeft = gameMode === 'timeAttack' ? 60 : Infinity;
+  
+  // Reset 3D timer
+  if (timerMesh) {
+    scene.remove(timerMesh);
+    timerMesh = null;
+  }
+  
   document.getElementById('scoreDisplay').textContent = '0';
+  document.getElementById('comboDisplay').textContent = '';
   document.getElementById('gameOverModal').style.display = 'none';
   document.getElementById('pauseModal').style.display = 'none';
   document.getElementById('quitModal').style.display = 'none';
@@ -1213,10 +1677,9 @@ function initGame() {
   targetPoint.set(0, 0, 0);
   camera.position.set(0, 20, 11);
 
-  // Generate first equation
-  currentEquation = generateEquation();
-  document.getElementById('equationText').textContent =
-    currentEquation.num1 + ' + ' + currentEquation.num2 + ' = ?';
+  // Generate first equation with new system
+  generateEquation();
+  document.getElementById('equationText').textContent = currentEquation;
 
   // Trigger glitter on first equation
   const eqBox = document.getElementById('equationBox');
@@ -1239,11 +1702,6 @@ function onResize() {
   renderer.setSize(w, h);
 }
 
-/**
- * Main Game Loop
- * Called 60fps via requestAnimationFrame
- * Updates all game logic and renders to screen
- */
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   const dt = clock.getDelta();     // Delta time since last frame
@@ -1251,9 +1709,35 @@ function gameLoop() {
 
   // Update game state
   if (gameActive && !gamePaused) {
+    // Time attack mode countdown
+    if (gameMode === 'timeAttack') {
+      timeLeft = Math.max(0, 60 - Math.floor((Date.now() - gameStartTime) / 1000));
+      
+      // Initialize 3D timer on first frame
+      if (!timerMesh) {
+        createTimer3D();
+      }
+      
+      // Update 3D timer appearance
+      updateTimer3D();
+      
+      if (timeLeft <= 0) {
+        gameActive = false;
+        if (timerMesh) scene.remove(timerMesh);
+        timerMesh = null;
+        setTimeout(() => {
+          document.getElementById('finalScore').textContent = score;
+          document.getElementById('highScoreMessage').textContent = `Best: ${highScore}`;
+          document.getElementById('gameOverModal').style.display = 'flex';
+          stopBackgroundMusic();
+        }, 500);
+      }
+    }
+    
     updateBug();
     updateCamera();
     checkCollisions();
+    updatePowerups(); // Update active power-ups
   } else if (!gameActive) {
     updateCamera(); // Still follow camera on game over screen
   }
@@ -1276,8 +1760,7 @@ function setupUI() {
   document.getElementById('playBtn').addEventListener('click', () => {
     playClickSound();
     document.getElementById('startScreen').style.display = 'none';
-    document.getElementById('hud').style.display = 'block';
-    initGame();
+    document.getElementById('gameModeModal').style.display = 'flex';
   });
 
   document.getElementById('howToPlayBtn').addEventListener('click', () => {
@@ -1297,10 +1780,70 @@ function setupUI() {
     }
   });
 
+  // --- GAME MODE SELECTOR ---
+  document.getElementById('normalModeBtn').addEventListener('click', () => {
+    selectGameMode('normal');
+  });
+  document.getElementById('timeAttackBtn').addEventListener('click', () => {
+    selectGameMode('timeAttack');
+  });
+  document.getElementById('survivalBtn').addEventListener('click', () => {
+    selectGameMode('survival');
+  });
+
+  // --- SETTINGS ---
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    playClickSound();
+    settingsOpen = true;
+    document.getElementById('settingsModal').style.display = 'flex';
+  });
+
+  document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+    playClickSound();
+    settingsOpen = false;
+    document.getElementById('settingsModal').style.display = 'none';
+    saveGameSettings();
+  });
+
+  document.getElementById('closeSettings').addEventListener('click', () => {
+    playClickSound();
+    settingsOpen = false;
+    document.getElementById('settingsModal').style.display = 'none';
+    saveGameSettings();
+  });
+
+  document.getElementById('settingsModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('settingsModal')) {
+      playClickSound();
+      settingsOpen = false;
+      document.getElementById('settingsModal').style.display = 'none';
+      saveGameSettings();
+    }
+  });
+
+  // Settings controls
+  document.getElementById('sfxVolume').addEventListener('change', e => {
+    soundEnabled = e.target.value > 0;
+  });
+
+  document.getElementById('musicVolume').addEventListener('change', e => {
+    musicEnabled = e.target.value > 0;
+    if (musicEnabled) startBackgroundMusic();
+    else stopBackgroundMusic();
+  });
+
+  document.getElementById('difficultySelect').addEventListener('change', e => {
+    difficulty = e.target.value;
+    saveGameSettings();
+  });
+
+  document.getElementById('resetScoreBtn').addEventListener('click', resetHighScore);
+
   // --- GAME OVER ---
   document.getElementById('playAgainBtn').addEventListener('click', () => {
     playClickSound();
-    initGame();
+    document.getElementById('gameOverModal').style.display = 'none';
+    document.getElementById('gameModeModal').style.display = 'flex';
   });
 
   document.getElementById('mainMenuBtn').addEventListener('click', () => {
@@ -1311,6 +1854,7 @@ function setupUI() {
     document.getElementById('gameOverModal').style.display = 'none';
     document.getElementById('hud').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
+    stopBackgroundMusic();
   });
 
   // --- PAUSE ---
@@ -1337,6 +1881,7 @@ function setupUI() {
     document.getElementById('pauseModal').style.display = 'none';
     document.getElementById('hud').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
+    stopBackgroundMusic();
   });
 
   // --- QUIT ---
@@ -1356,6 +1901,7 @@ function setupUI() {
     document.getElementById('quitModal').style.display = 'none';
     document.getElementById('hud').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
+    stopBackgroundMusic();
   });
 
   document.getElementById('quitCancelBtn').addEventListener('click', () => {
@@ -1368,6 +1914,19 @@ function setupUI() {
 
   // --- SOUND TOGGLE ---
   document.getElementById('soundToggleBtn').addEventListener('click', toggleSound);
+}
+
+function selectGameMode(mode) {
+  gameMode = mode;
+  document.getElementById('gameModeModal').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  
+  // Set time attack timer if needed
+  if (mode === 'timeAttack') {
+    timeLeft = 60;
+  }
+  
+  initGame();
 }
 function boot() {
   initThree();              // 1. Setup 3D scene
