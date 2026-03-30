@@ -26,7 +26,7 @@ const MAX_NUM = 15;             // Maximum number (15 + 15 = up to 30)
 /**
  * Mobile & Input Configuration
  */
-const TOUCH_SENSITIVITY = 1; // Touch damping: 0=immobile, 1=same as mouse
+const TOUCH_SENSITIVITY = 1.2; // Touch damping: 0=immobile, 1=same as mouse
 const CAMERA_FOLLOW_SPEED = 0.035; // Camera smoothing: higher=faster follow
 const IS_MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
