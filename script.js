@@ -83,6 +83,10 @@ let sunLight;                       // Main directional light (follows camera)
 let lastOrbSpawnX = 0;              // Last grid cell X we spawned
 let lastOrbSpawnZ = 0;              // Last grid cell Z we spawned
 
+// Audio System
+let audioContext;                   // Web Audio API context
+let soundEnabled = true;            // Toggle sound on/off
+
 /**
  * Initialize Three.js Scene
  * Creates main scene, perspective camera, WebGL renderer
@@ -118,6 +122,158 @@ function initThree() {
   // Listen for window resize
   window.addEventListener('resize', onResize);
 }
+
+/* ========================================
+   SECTION 3B: AUDIO SYSTEM
+   Web Audio API sound synthesis
+   ======================================== */
+
+/**
+ * Initialize Audio Context
+ * Create Web Audio API context for sound generation
+ */
+function initAudio() {
+  try {
+    const audioCtx = window.AudioContext || window.webkitAudioContext;
+    audioContext = new audioCtx();
+  } catch (e) {
+    console.warn('Web Audio API not supported');
+    soundEnabled = false;
+  }
+}
+
+/**
+ * Play Correct Answer Sound
+ * Uplifting "ding" with pitch sweep (C4 → G4)
+ */
+function playCorrectSound() {
+  if (!soundEnabled || !audioContext) return;
+  
+  const now = audioContext.currentTime;
+  const duration = 0.4;
+  
+  // Oscillator: pitch sweep
+  const osc = audioContext.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(262, now);      // C4
+  osc.frequency.exponentialRampToValueAtTime(392, now + duration); // G4
+  
+  // Gain envelope: attack-decay
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+/**
+ * Play Wrong Answer Sound
+ * Low buzzer beep (descending pitch)
+ */
+function playWrongSound() {
+  if (!soundEnabled || !audioContext) return;
+  
+  const now = audioContext.currentTime;
+  const duration = 0.3;
+  
+  // Oscillator: pitch drop
+  const osc = audioContext.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, now);      // Low note
+  osc.frequency.exponentialRampToValueAtTime(80, now + duration); // Even lower
+  
+  // Gain envelope
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.25, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+/**
+ * Play Glitter Sound
+ * Magical sparkle (high notes, short)
+ */
+function playGlitterSound() {
+  if (!soundEnabled || !audioContext) return;
+  
+  const now = audioContext.currentTime;
+  const duration = 0.25;
+  
+  // Oscillator: high pitch
+  const osc = audioContext.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(800, now);      // High C
+  
+  // Gain envelope: quick fade
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+/**
+ * Play UI Click Sound
+ * Soft button press
+ */
+function playClickSound() {
+  if (!soundEnabled || !audioContext) return;
+  
+  const now = audioContext.currentTime;
+  const duration = 0.15;
+  
+  // Oscillator: medium pitch
+  const osc = audioContext.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440, now);      // A4
+  
+  // Gain envelope
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+/**
+ * Toggle Sound
+ * Mute/unmute all sounds
+ */
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const soundBtn = document.getElementById('soundToggleBtn');
+  if (soundBtn) {
+    soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+  }
+  playClickSound();
+}
+
+/**
+ * Setup Audio
+ * Initialize Web Audio API
+ */
+function setupAudio() {
+  initAudio();
+}
+
+/* ========================================
+   SECTION 4: LIGHTING
+   Setup ambient and directional lights
+   ======================================== */
+
 /**
  * Setup Lighting
  * Multiple light sources create realistic 3D appearance
@@ -917,6 +1073,9 @@ function handleCorrect(orb, idx) {
   score += 10;
   document.getElementById('scoreDisplay').textContent = score;
   
+  // Play sound effects
+  playCorrectSound();
+  
   // Show feedback
   showComboFlash('✓ +10');
   burst(orb.group.position.clone());
@@ -931,7 +1090,8 @@ function handleCorrect(orb, idx) {
   document.getElementById('equationText').textContent =
     currentEquation.num1 + ' + ' + currentEquation.num2 + ' = ?';
 
-  // Trigger glitter animation
+  // Trigger glitter animation & sound
+  playGlitterSound();
   const eqBox = document.getElementById('equationBox');
   eqBox.classList.remove('glitter');
   void eqBox.offsetWidth; // Force reflow
@@ -946,6 +1106,9 @@ function handleWrong(orb) {
   if (!gameActive) return;
   
   gameActive = false;
+  
+  // Play wrong sound
+  playWrongSound();
   
   // Red flash on wrong orb
   orb.sphere.material.color.setHex(0xff2222);
@@ -1111,30 +1274,37 @@ function gameLoop() {
 function setupUI() {
   // --- START SCREEN ---
   document.getElementById('playBtn').addEventListener('click', () => {
+    playClickSound();
     document.getElementById('startScreen').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     initGame();
   });
 
   document.getElementById('howToPlayBtn').addEventListener('click', () => {
+    playClickSound();
     document.getElementById('instructionsModal').style.display = 'flex';
   });
 
   document.getElementById('closeInstructions').addEventListener('click', () => {
+    playClickSound();
     document.getElementById('instructionsModal').style.display = 'none';
   });
 
   document.getElementById('instructionsModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('instructionsModal'))
+    if (e.target === document.getElementById('instructionsModal')) {
+      playClickSound();
       document.getElementById('instructionsModal').style.display = 'none';
+    }
   });
 
   // --- GAME OVER ---
   document.getElementById('playAgainBtn').addEventListener('click', () => {
+    playClickSound();
     initGame();
   });
 
   document.getElementById('mainMenuBtn').addEventListener('click', () => {
+    playClickSound();
     gameActive = false;
     numberOrbs.forEach(o => { scene.remove(o.group); removeOrbLabel(o.label); });
     numberOrbs = [];
@@ -1146,17 +1316,20 @@ function setupUI() {
   // --- PAUSE ---
   document.getElementById('pauseBtn').addEventListener('click', () => {
     if (gameActive) {
+      playClickSound();
       gamePaused = true;
       document.getElementById('pauseModal').style.display = 'flex';
     }
   });
 
   document.getElementById('resumeBtn').addEventListener('click', () => {
+    playClickSound();
     gamePaused = false;
     document.getElementById('pauseModal').style.display = 'none';
   });
 
   document.getElementById('pauseMenuBtn').addEventListener('click', () => {
+    playClickSound();
     gameActive = false;
     gamePaused = false;
     numberOrbs.forEach(o => { scene.remove(o.group); removeOrbLabel(o.label); });
@@ -1169,11 +1342,13 @@ function setupUI() {
   // --- QUIT ---
   document.getElementById('exitBtn').addEventListener('click', () => {
     if (gameActive) {
+      playClickSound();
       document.getElementById('quitModal').style.display = 'flex';
     }
   });
 
   document.getElementById('quitConfirmBtn').addEventListener('click', () => {
+    playClickSound();
     gameActive = false;
     gamePaused = false;
     numberOrbs.forEach(o => { scene.remove(o.group); removeOrbLabel(o.label); });
@@ -1184,11 +1359,15 @@ function setupUI() {
   });
 
   document.getElementById('quitCancelBtn').addEventListener('click', () => {
+    playClickSound();
     document.getElementById('quitModal').style.display = 'none';
     if (gamePaused) {
       document.getElementById('pauseModal').style.display = 'flex';
     }
   });
+
+  // --- SOUND TOGGLE ---
+  document.getElementById('soundToggleBtn').addEventListener('click', toggleSound);
 }
 function boot() {
   initThree();              // 1. Setup 3D scene
@@ -1196,8 +1375,9 @@ function boot() {
   buildWorld();             // 3. Create grass & decorations
   createBug();              // 4. Create player character
   setupControls();          // 5. Enable input
-  setupUI();                // 6. Bind UI buttons
-  gameLoop();               // 7. Start rendering
+  setupAudio();             // 6. Initialize Web Audio
+  setupUI();                // 7. Bind UI buttons
+  gameLoop();               // 8. Start rendering
 }
 
 boot();
