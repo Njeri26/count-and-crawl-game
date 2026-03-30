@@ -1,9 +1,4 @@
 /**
- * - Responsive layout for all devices
- * - Smooth animations and transitions
- * - Mobile-first approach
- * 
- * Features:
  * - HUD (Heads-Up Display) styling
  * - Modal overlays and dialogs
  * - Animated buttons and text
@@ -11,26 +6,13 @@
  * - Touch-friendly UI elements
  */
 
-/* ========================================
-   GLOBAL RESET & BASE STYLES
-   ======================================== */
 
-/**
- * Reset all default margins, padding, and sizing
- * Ensures consistent styling across all browsers
- */
 *, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/**
- * Body: Main container for the entire game
- * - Full-screen canvas background
- * - Prevent scrolling and user selection
- * - Smooth font rendering
- */
 body {
   overflow: hidden;                          /* Hide scrollbars */
   background: linear-gradient(180deg, #1a8fe3 0%, #56ccf2 40%, #a8edaf 100%);
@@ -42,11 +24,6 @@ body {
   -webkit-font-smoothing: antialiased;       /* Smooth fonts */
   -moz-osx-font-smoothing: grayscale;        /* Firefox */
 }
-
-/* ========================================
-   THREE.JS CANVAS
-   ======================================== */
-
 /**
  * Canvas element where Three.js renders the 3D scene
  * Positioned full-screen behind all UI elements (z-index: 1)
@@ -58,11 +35,6 @@ body {
   display: block;
 }
 
-/* ========================================
-   HUD (HEADS-UP DISPLAY)
-   Main UI overlay visible during gameplay
-   ======================================== */
-
 #hud {
   position: fixed;
   inset: 0;                                  /* Cover entire screen */
@@ -71,12 +43,6 @@ body {
   display: none;                             /* Hidden until game starts */
 }
 
-/**
- * HUD Control Buttons (Pause & Exit)
- * Circular buttons positioned in top-left corner
- * - Greenish for pause (normal action)
- * - Reddish for exit (warning action)
- */
 .hud-button {
   position: absolute;
   width: 50px;
@@ -104,19 +70,11 @@ body {
   transform: scale(0.95);                    /* Shrink when pressed */
 }
 
-/**
- * Pause Button - Green circular button
- * Top-left corner, icon: ⏸
- */
 #pauseBtn {
   top: 18px;
   left: 18px;
 }
 
-/**
- * Exit Button - Red circular button
- * Next to pause button, icon: ✕
- */
 #exitBtn {
   top: 18px;
   left: 76px;
@@ -879,6 +837,3 @@ body {
   }
 }
 
-/* ========================================
-   END OF STYLESHEET
-   ======================================== */
