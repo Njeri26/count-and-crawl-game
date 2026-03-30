@@ -1,4 +1,4 @@
-/**
+/**mpya
  * Architecture:
  * - Three.js for 3D rendering
  * - Raycasting for mouse/touch input
@@ -14,24 +14,20 @@ const TILE_SIZE = 26;           // Size of one grass tile (26×26 units)
 const TILE_COUNT = 9;           // Create 9×9 grid = 81 tiles (infinite look)
 const SEG_COUNT = 11;           // Number of body segments on bug (head + 11 segments)
 const SEG_SPACING = 0.95;       // Distance between segments (creates snake-like body)
-// script.js
 
 /**
  * Gameplay Constants
  */
-const BUG_SPEED = 0.20;         // Max movement speed per frame (0-1 scale)
+const BUG_SPEED = 0.60;         // Max movement speed per frame (0-1 scale)
 const ORB_COUNT = 8;            // Number of orbs to spawn per grid cell
 const MIN_NUM = 1;              // Minimum number in equation (1 + 1)
 const MAX_NUM = 15;             // Maximum number (15 + 15 = up to 30)
-const BUG_SPEED = 0.60; // Updated from 0.40
-const TOUCH_SENSITIVITY = 1.0; // Updated from 1.2
-const CAMERA_FOLLOW_SPEED = 0.10; // Updated from 0.035
 
 /**
  * Mobile & Input Configuration
  */
-const TOUCH_SENSITIVITY = 0.92; // Touch damping: 0=immobile, 1=same as mouse
-const CAMERA_FOLLOW_SPEED = 0.035; // Camera smoothing: higher=faster follow
+const TOUCH_SENSITIVITY = 1; // Touch damping: 0=immobile, 1=same as mouse
+const CAMERA_FOLLOW_SPEED = 0.10; // Camera smoothing: higher=faster follow
 const IS_MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 /**
@@ -1205,4 +1201,3 @@ function boot() {
 }
 
 boot();
-// Additional code...
