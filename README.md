@@ -1,12 +1,12 @@
-# Count & Crawl🐛
+# Count & Crawl
 
 A vibrant, interactive 3D math game for kids! Guide a cute bug across an endless grassy landscape, solving arithmetic equations by eating the correct number orbs. Fast-paced gameplay with smooth touch controls, beautiful animations, and full mobile responsiveness.
 
----
 
-##Game Overview
 
-### What is Count & Crawl 3D?
+Game Overview
+
+What is Count & Crawl 3D?
 
 Count & Crawl 3D is an educational game that combines:
 - **Math Practice**: Simple addition equations (num1 + num2 = ?)
